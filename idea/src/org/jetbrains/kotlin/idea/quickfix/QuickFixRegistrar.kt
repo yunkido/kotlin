@@ -645,6 +645,8 @@ class QuickFixRegistrar : QuickFixContributor {
 
         FUN_INTERFACE_WRONG_COUNT_OF_ABSTRACT_MEMBERS.registerFactory(RemoveModifierFix.createRemoveFunFromInterfaceFactory())
 
+        CONFLICTING_JVM_DECLARATIONS.registerFactory(AddJvmNameAnnotationFix)
+
         TOPLEVEL_TYPEALIASES_ONLY.registerFactory(MoveTypeAliasToTopLevelFix)
     }
 }

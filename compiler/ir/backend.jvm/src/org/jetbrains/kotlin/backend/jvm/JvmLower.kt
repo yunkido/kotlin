@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.backend.jvm
 
 import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
+import org.jetbrains.kotlin.backend.common.WrapSymbolDescriptorsVisitor
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.common.lower.loops.forLoopsPhase
 import org.jetbrains.kotlin.backend.common.lower.optimizations.foldConstantLoweringPhase
@@ -42,6 +43,12 @@ private fun makePatchParentsPhase(number: Int) = namedIrFilePhase(
     name = "PatchParents$number",
     description = "Patch parent references in IrFile, pass $number",
     nlevels = 0
+)
+
+private val wrapDescriptorsPhase = makeCustomPhase<JvmBackendContext, IrModuleFragment>(
+    { context, module -> module.acceptVoid(WrapSymbolDescriptorsVisitor()) },
+    name = "WrapDescriptors",
+    description = "Wrap all descriptors in symbols"
 )
 
 private val validateIrBeforeLowering = makeCustomPhase<JvmBackendContext, IrModuleFragment>(
@@ -375,7 +382,8 @@ private val jvmFilePhases =
 val jvmPhases = namedIrModulePhase(
     name = "IrLowering",
     description = "IR lowering",
-    lower = validateIrBeforeLowering then
+    lower = wrapDescriptorsPhase then
+            validateIrBeforeLowering then
             expectDeclarationsRemovingPhase then
             fileClassPhase then
             performByIrFile(lower = jvmFilePhases) then

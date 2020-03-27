@@ -62,7 +62,7 @@ class IrFunctionImpl(
         isOperator = symbol.descriptor.isOperator
     )
 
-    override val descriptor: FunctionDescriptor = symbol.descriptor
+    override val descriptor: FunctionDescriptor get() = symbol.descriptor
 
     override var overriddenSymbolsField: List<IrSimpleFunctionSymbol> = emptyList()
 

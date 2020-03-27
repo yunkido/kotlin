@@ -75,7 +75,7 @@ class IrValueParameterImpl(
     ) :
             this(startOffset, endOffset, origin, IrValueParameterSymbolImpl(descriptor), type, varargElementType)
 
-    override val descriptor: ParameterDescriptor = symbol.descriptor
+    override val descriptor: ParameterDescriptor get() = symbol.descriptor
 
     init {
         symbol.bind(this)

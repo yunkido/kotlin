@@ -10659,6 +10659,11 @@ public class DiagnosticsUsingJavacTestGenerated extends AbstractDiagnosticsUsing
                     runTest("compiler/testData/diagnostics/tests/inference/completion/basic.kt");
                 }
 
+                @TestMetadata("callableReferenceLambdaCombinationInsideCall.kt")
+                public void testCallableReferenceLambdaCombinationInsideCall() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/inference/completion/callableReferenceLambdaCombinationInsideCall.kt");
+                }
+
                 @TestMetadata("definitelyNotNullType.kt")
                 public void testDefinitelyNotNullType() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/inference/completion/definitelyNotNullType.kt");
@@ -10692,6 +10697,11 @@ public class DiagnosticsUsingJavacTestGenerated extends AbstractDiagnosticsUsing
                 @TestMetadata("lambdaWithVariableAndNothing.kt")
                 public void testLambdaWithVariableAndNothing() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/inference/completion/lambdaWithVariableAndNothing.kt");
+                }
+
+                @TestMetadata("lambdasInTryCatch.kt")
+                public void testLambdasInTryCatch() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/inference/completion/lambdasInTryCatch.kt");
                 }
 
                 @TestMetadata("nestedVariance.kt")

@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.annotations.BuiltInAnnotationDescriptor
+import org.jetbrains.kotlin.descriptors.annotations.FilteredAnnotations
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqNameUnsafe
 import org.jetbrains.kotlin.name.Name
@@ -197,29 +198,38 @@ fun getFunctionTypeArgumentProjections(
 
 @JvmOverloads
 fun createFunctionType(
-        builtIns: KotlinBuiltIns,
-        annotations: Annotations,
-        receiverType: KotlinType?,
-        parameterTypes: List<KotlinType>,
-        parameterNames: List<Name>?,
-        returnType: KotlinType,
-        suspendFunction: Boolean = false
+    builtIns: KotlinBuiltIns,
+    annotations: Annotations,
+    receiverType: KotlinType?,
+    parameterTypes: List<KotlinType>,
+    parameterNames: List<Name>?,
+    returnType: KotlinType,
+    suspendFunction: Boolean = false
 ): SimpleType {
     val arguments = getFunctionTypeArgumentProjections(receiverType, parameterTypes, parameterNames, returnType, builtIns)
-    val size = parameterTypes.size
-    val parameterCount = if (receiverType == null) size else size + 1
-    val classDescriptor = if (suspendFunction) builtIns.getSuspendFunction(parameterCount) else builtIns.getFunction(parameterCount)
+    val parameterCount = if (receiverType == null) parameterTypes.size else parameterTypes.size + 1
+    val classDescriptor = getFunctionDescriptor(builtIns, parameterCount, suspendFunction)
 
     // TODO: preserve laziness of given annotations
-    val typeAnnotations =
-            if (receiverType == null || annotations.findAnnotation(KotlinBuiltIns.FQ_NAMES.extensionFunctionType) != null) {
-                annotations
-            }
-            else {
-                Annotations.create(
-                    annotations + BuiltInAnnotationDescriptor(builtIns, KotlinBuiltIns.FQ_NAMES.extensionFunctionType, emptyMap())
-                )
-            }
+    val typeAnnotations = if (receiverType != null) annotations.withExtensionFunctionAnnotation(builtIns) else annotations
 
     return KotlinTypeFactory.simpleNotNullType(typeAnnotations, classDescriptor, arguments)
 }
+
+fun Annotations.hasExtensionFunctionAnnotation() = hasAnnotation(KotlinBuiltIns.FQ_NAMES.extensionFunctionType)
+
+fun Annotations.withoutExtensionFunctionAnnotation() =
+    FilteredAnnotations(this, true) { it != KotlinBuiltIns.FQ_NAMES.extensionFunctionType }
+
+fun Annotations.withExtensionFunctionAnnotation(builtIns: KotlinBuiltIns) =
+    if (hasAnnotation(KotlinBuiltIns.FQ_NAMES.extensionFunctionType)) {
+        this
+    } else {
+        Annotations.create(this + BuiltInAnnotationDescriptor(builtIns, KotlinBuiltIns.FQ_NAMES.extensionFunctionType, emptyMap()))
+    }
+
+fun getFunctionDescriptor(builtIns: KotlinBuiltIns, parameterCount: Int, isSuspendFunction: Boolean) =
+    if (isSuspendFunction) builtIns.getSuspendFunction(parameterCount) else builtIns.getFunction(parameterCount)
+
+fun getKFunctionDescriptor(builtIns: KotlinBuiltIns, parameterCount: Int, isSuspendFunction: Boolean) =
+    if (isSuspendFunction) builtIns.getKSuspendFunction(parameterCount) else builtIns.getKFunction(parameterCount)

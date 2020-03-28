@@ -26,7 +26,7 @@ class IrLazyProperty(
     endOffset: Int,
     origin: IrDeclarationOrigin,
     override val symbol: IrPropertySymbol,
-    override val descriptor: PropertyDescriptor,
+    initialDescriptor: PropertyDescriptor,
     override val name: Name,
     override val visibility: Visibility,
     override val modality: Modality,
@@ -41,15 +41,17 @@ class IrLazyProperty(
     typeTranslator: TypeTranslator,
     bindingContext: BindingContext? = null
 ) :
-    IrLazyDeclarationBase(startOffset, endOffset, origin, stubGenerator, typeTranslator),
+    IrLazyDeclarationBase(startOffset, endOffset, initialDescriptor, origin, stubGenerator, typeTranslator),
     IrProperty {
 
     init {
         symbol.bind(this)
     }
 
+    override val descriptor = symbol.descriptor
+
     private val hasBackingField: Boolean =
-        descriptor.hasBackingField(bindingContext) || stubGenerator.extensions.isPropertyWithPlatformField(descriptor)
+        initialDescriptor.hasBackingField(bindingContext) || stubGenerator.extensions.isPropertyWithPlatformField(initialDescriptor)
 
     override var backingField: IrField? by lazyVar {
         if (hasBackingField) {
@@ -59,12 +61,12 @@ class IrLazyProperty(
         } else null
     }
     override var getter: IrSimpleFunction? by lazyVar {
-        descriptor.getter?.let { stubGenerator.generateFunctionStub(it, createPropertyIfNeeded = false) }?.apply {
+        initialDescriptor.getter?.let { stubGenerator.generateFunctionStub(it, createPropertyIfNeeded = false) }?.apply {
             correspondingPropertySymbol = this@IrLazyProperty.symbol
         }
     }
     override var setter: IrSimpleFunction? by lazyVar {
-        descriptor.setter?.let { stubGenerator.generateFunctionStub(it, createPropertyIfNeeded = false) }?.apply {
+        initialDescriptor.setter?.let { stubGenerator.generateFunctionStub(it, createPropertyIfNeeded = false) }?.apply {
             correspondingPropertySymbol = this@IrLazyProperty.symbol
         }
     }

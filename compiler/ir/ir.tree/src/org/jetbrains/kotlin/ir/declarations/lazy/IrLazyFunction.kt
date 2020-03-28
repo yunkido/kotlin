@@ -23,7 +23,7 @@ class IrLazyFunction(
     endOffset: Int,
     origin: IrDeclarationOrigin,
     override val symbol: IrSimpleFunctionSymbol,
-    override val descriptor: FunctionDescriptor,
+    initialDescriptor: FunctionDescriptor,
     name: Name,
     visibility: Visibility,
     override val modality: Modality,
@@ -37,15 +37,19 @@ class IrLazyFunction(
     stubGenerator: DeclarationStubGenerator,
     typeTranslator: TypeTranslator
 ) :
-    IrLazyFunctionBase(startOffset, endOffset, origin, name, visibility, isInline, isExternal, isExpect, stubGenerator, typeTranslator),
+    IrLazyFunctionBase(
+        startOffset, endOffset, initialDescriptor, origin, name, visibility, isInline, isExternal, isExpect, stubGenerator, typeTranslator
+    ),
     IrSimpleFunction {
+
+    override val descriptor get() = symbol.descriptor
 
     override var typeParameters: List<IrTypeParameter> by lazyVar {
         typeTranslator.buildWithScope(this) {
-            stubGenerator.symbolTable.withScope(descriptor) {
-                val propertyIfAccessor = descriptor.propertyIfAccessor
+            stubGenerator.symbolTable.withScope(initialDescriptor) {
+                val propertyIfAccessor = initialDescriptor.propertyIfAccessor
                 propertyIfAccessor.typeParameters.mapTo(arrayListOf()) { typeParameterDescriptor ->
-                    if (descriptor != propertyIfAccessor) {
+                    if (initialDescriptor != propertyIfAccessor) {
                         stubGenerator.generateOrGetScopedTypeParameterStub(typeParameterDescriptor).also { irTypeParameter ->
                             irTypeParameter.parent = this@IrLazyFunction
                         }
@@ -59,7 +63,7 @@ class IrLazyFunction(
 
 
     override var overriddenSymbols: List<IrSimpleFunctionSymbol> by lazyVar {
-        descriptor.overriddenDescriptors.mapTo(arrayListOf()) {
+        initialDescriptor.overriddenDescriptors.mapTo(arrayListOf()) {
             stubGenerator.generateFunctionStub(it.original).symbol
         }
     }

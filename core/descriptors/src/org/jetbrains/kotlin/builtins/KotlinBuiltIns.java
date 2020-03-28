@@ -443,6 +443,11 @@ public abstract class KotlinBuiltIns {
     }
 
     @NotNull
+    public static FqNameUnsafe getKFunctionFqName(int parameterCount) {
+        return FqNames.reflect(FunctionClassDescriptor.Kind.KFunction.getClassNamePrefix() + parameterCount);
+    }
+
+    @NotNull
     public static ClassId getFunctionClassId(int parameterCount) {
         return new ClassId(BUILT_INS_PACKAGE_FQ_NAME, Name.identifier(getFunctionName(parameterCount)));
     }
@@ -455,6 +460,17 @@ public abstract class KotlinBuiltIns {
     @NotNull
     public ClassDescriptor getSuspendFunction(int parameterCount) {
         Name name = Name.identifier(FunctionClassDescriptor.Kind.SuspendFunction.getClassNamePrefix() + parameterCount);
+        return getBuiltInClassByFqName(COROUTINES_PACKAGE_FQ_NAME_RELEASE.child(name));
+    }
+
+    @NotNull
+    public ClassDescriptor getKFunction(int parameterCount) {
+        return getBuiltInClassByFqName(getKFunctionFqName(parameterCount).toSafe());
+    }
+
+    @NotNull
+    public ClassDescriptor getKSuspendFunction(int parameterCount) {
+        Name name = Name.identifier(FunctionClassDescriptor.Kind.KSuspendFunction.getClassNamePrefix() + parameterCount);
         return getBuiltInClassByFqName(COROUTINES_PACKAGE_FQ_NAME_RELEASE.child(name));
     }
 

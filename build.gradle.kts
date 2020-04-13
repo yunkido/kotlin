@@ -259,6 +259,7 @@ extra["compilerModules"] = arrayOf(
     ":core:type-system",
     ":compiler:fir:cones",
     ":compiler:fir:resolve",
+    ":compiler:fir:fir-serialization",
     ":compiler:fir:tree",
     ":compiler:fir:raw-fir:fir-common",
     ":compiler:fir:raw-fir:psi2fir",

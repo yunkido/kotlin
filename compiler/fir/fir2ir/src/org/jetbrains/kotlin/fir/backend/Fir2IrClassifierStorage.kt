@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrClassImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrEnumEntryImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrTypeParameterImpl
-import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
 import org.jetbrains.kotlin.ir.descriptors.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrEnumConstructorCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrExpressionBodyImpl
@@ -188,7 +187,7 @@ class Fir2IrClassifierStorage(
                     isExpect = regularClass.isExpect,
                     isFun = false // TODO FirRegularClass.isFun
                 ).apply {
-                    metadata = MetadataSource.Class(descriptor)
+                    metadata = FirMetadataSource.Class(regularClass, descriptor)
                     descriptor.bind(this)
                 }
             }
@@ -223,7 +222,7 @@ class Fir2IrClassifierStorage(
                     isCompanion = false, isInner = false, isData = false,
                     isExternal = false, isInline = false, isExpect = false, isFun = false
                 ).apply {
-                    metadata = MetadataSource.Class(descriptor)
+                    metadata = FirMetadataSource.Class(anonymousObject, descriptor)
                     descriptor.bind(this)
                     setThisReceiver(anonymousObject.typeParameters)
                     if (irParent != null) {

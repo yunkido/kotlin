@@ -437,7 +437,7 @@ class Fir2IrDeclarationStorage(
                     isFakeOverride = updatedOrigin == IrDeclarationOrigin.FAKE_OVERRIDE,
                     isOperator = simpleFunction?.isOperator == true
                 ).apply {
-                    metadata = MetadataSource.Function(descriptor)
+                    metadata = FirMetadataSource.Function(function, descriptor)
                 }
             }
             result
@@ -494,7 +494,7 @@ class Fir2IrDeclarationStorage(
                     constructor.returnTypeRef.toIrType(),
                     isInline = false, isExternal = false, isPrimary = isPrimary, isExpect = false
                 ).apply {
-                    metadata = MetadataSource.Function(descriptor)
+                    metadata = FirMetadataSource.Function(constructor, descriptor)
                     enterScope(descriptor)
                 }.bindAndDeclareParameters(constructor, descriptor, irParent, isStatic = false).apply {
                     leaveScope(descriptor)
@@ -542,7 +542,9 @@ class Fir2IrDeclarationStorage(
                 isFakeOverride = origin == IrDeclarationOrigin.FAKE_OVERRIDE,
                 isOperator = false
             ).apply {
-                metadata = MetadataSource.Function(descriptor)
+                if (propertyAccessor != null) {
+                    metadata = FirMetadataSource.Function(propertyAccessor, descriptor)
+                }
                 with(classifierStorage) {
                     setTypeParameters(
                         property, ConversionTypeContext(
@@ -630,7 +632,7 @@ class Fir2IrDeclarationStorage(
                     isExpect = property.isExpect,
                     isFakeOverride = origin == IrDeclarationOrigin.FAKE_OVERRIDE
                 ).apply {
-                    metadata = MetadataSource.Property(descriptor)
+                    metadata = FirMetadataSource.Variable(property, descriptor)
                     descriptor.bind(this)
                     if (irParent != null) {
                         parent = irParent
@@ -714,7 +716,7 @@ class Fir2IrDeclarationStorage(
                     isStatic = field.isStatic,
                     isFakeOverride = false
                 ).apply {
-                    metadata = MetadataSource.Property(descriptor)
+                    metadata = FirMetadataSource.Variable(field, descriptor)
                     descriptor.bind(this)
                     fieldCache[field] = this
                 }

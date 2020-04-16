@@ -7,7 +7,19 @@ package org.jetbrains.kotlin.fir.backend.generators
 
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
+import org.jetbrains.kotlin.fir.backend.FirMetadataSource
 import org.jetbrains.kotlin.fir.backend.declareThisReceiverParameter
+import org.jetbrains.kotlin.fir.declarations.FirClass
+import org.jetbrains.kotlin.fir.declarations.builder.buildSimpleFunction
+import org.jetbrains.kotlin.fir.declarations.builder.buildValueParameter
+import org.jetbrains.kotlin.fir.declarations.impl.FirDeclarationStatusImpl
+import org.jetbrains.kotlin.fir.symbols.CallableId
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
+import org.jetbrains.kotlin.fir.types.impl.FirImplicitBooleanTypeRef
+import org.jetbrains.kotlin.fir.types.impl.FirImplicitIntTypeRef
+import org.jetbrains.kotlin.fir.types.impl.FirImplicitNullableAnyTypeRef
+import org.jetbrains.kotlin.fir.types.impl.FirImplicitStringTypeRef
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.IrGeneratorContextBase
 import org.jetbrains.kotlin.ir.declarations.*
@@ -19,26 +31,30 @@ import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.util.DataClassMembersGenerator
+import org.jetbrains.kotlin.ir.util.classId
+import org.jetbrains.kotlin.ir.util.defaultType
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 
 class DataClassMembersGenerator(val components: Fir2IrComponents) {
 
     // TODO: generateInlineClassMembers
 
-    fun generateDataClassMembers(irClass: IrClass): List<Name> =
-        MyDataClassMethodsGenerator(irClass, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER).generate()
+    fun generateDataClassMembers(irClass: IrClass, classId: ClassId): List<Name> =
+        MyDataClassMethodsGenerator(irClass, classId, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER).generate()
 
-    fun generateDataClassComponentBody(irFunction: IrFunction) =
-        MyDataClassMethodsGenerator(irFunction.parentAsClass, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER)
+    fun generateDataClassComponentBody(irFunction: IrFunction, classId: ClassId) =
+        MyDataClassMethodsGenerator(irFunction.parentAsClass, classId, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER)
             .generateComponentBody(irFunction)
 
-    fun generateDataClassCopyBody(irFunction: IrFunction) =
-        MyDataClassMethodsGenerator(irFunction.parentAsClass, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER)
+    fun generateDataClassCopyBody(irFunction: IrFunction, classId: ClassId) =
+        MyDataClassMethodsGenerator(irFunction.parentAsClass, classId, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER)
             .generateCopyBody(irFunction)
 
 
     private inner class MyDataClassMethodsGenerator(
         val irClass: IrClass,
+        val classId: ClassId,
         val origin: IrDeclarationOrigin
     ) {
         val properties = irClass.declarations.filterIsInstance<IrProperty>().map { it.descriptor }
@@ -94,11 +110,7 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
             val equalsFunction = createSyntheticIrFunction(
                 Name.identifier("equals"),
                 components.irBuiltIns.booleanType
-            ).apply {
-                valueParameters = listOf(
-                    createSyntheticIrParameter(this, Name.identifier("other"), components.irBuiltIns.anyNType)
-                )
-            }
+            ) { createSyntheticIrParameter(it, Name.identifier("other"), components.irBuiltIns.anyNType) }
             irDataClassMembersGenerator.generateEqualsMethod(equalsFunction, properties)
             irClass.declarations.add(equalsFunction)
 
@@ -130,7 +142,11 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
         fun generateCopyBody(irFunction: IrFunction) =
             irDataClassMembersGenerator.generateCopyFunction(irFunction, irClass.primaryConstructor!!.symbol)
 
-        private fun createSyntheticIrFunction(name: Name, returnType: IrType): IrFunction {
+        private fun createSyntheticIrFunction(
+            name: Name,
+            returnType: IrType,
+            valueParameterBuilder: (IrFunction) -> IrValueParameter? = { null }
+        ): IrFunction {
             val functionDescriptor = WrappedSimpleFunctionDescriptor()
             val thisReceiverDescriptor = WrappedValueParameterDescriptor()
             return components.symbolTable.declareSimpleFunction(UNDEFINED_OFFSET, UNDEFINED_OFFSET, origin, functionDescriptor) { symbol ->
@@ -151,7 +167,39 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
                     isFakeOverride = false,
                     isOperator = false
                 ).apply {
-                    metadata = MetadataSource.Function(functionDescriptor)
+                    val irValueParameter = valueParameterBuilder(this)?.let {
+                        this.valueParameters = listOf(it)
+                        it
+                    }
+                    metadata = FirMetadataSource.Function(
+                        buildSimpleFunction {
+                            this.name = name
+                            this.symbol = FirNamedFunctionSymbol(CallableId(classId.packageFqName, classId.relativeClassName, name))
+                            this.status = FirDeclarationStatusImpl(Visibilities.PUBLIC, Modality.FINAL)
+                            this.session = components.session
+                            this.returnTypeRef = when (returnType) {
+                                components.irBuiltIns.booleanType -> FirImplicitBooleanTypeRef(null)
+                                components.irBuiltIns.intType -> FirImplicitIntTypeRef(null)
+                                components.irBuiltIns.stringType -> FirImplicitStringTypeRef(null)
+                                else -> throw AssertionError("Should not be here")
+                            }
+                            if (irValueParameter != null) {
+                                this.valueParameters.add(
+                                    buildValueParameter {
+                                        this.name = irValueParameter.name
+                                        this.session = components.session
+                                        this.returnTypeRef = FirImplicitNullableAnyTypeRef(null)
+                                        this.symbol = FirVariableSymbol(irValueParameter.name)
+                                        isCrossinline = false
+                                        isNoinline = false
+                                        isVararg = false
+                                    }
+                                )
+                            }
+                        },
+                        descriptor
+                    )
+
                 }
             }.apply {
                 parent = irClass

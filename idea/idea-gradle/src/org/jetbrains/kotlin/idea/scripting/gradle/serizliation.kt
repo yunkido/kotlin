@@ -5,60 +5,61 @@
 
 package org.jetbrains.kotlin.idea.scripting.gradle
 
-import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.FileAttribute
+import org.jetbrains.kotlin.idea.core.util.readNullable
 import org.jetbrains.kotlin.idea.core.util.readString
+import org.jetbrains.kotlin.idea.core.util.writeNullable
 import org.jetbrains.kotlin.idea.core.util.writeString
-import org.jetbrains.kotlin.idea.scripting.gradle.importing.GradleProjectId
 import org.jetbrains.kotlin.idea.scripting.gradle.importing.KotlinDslScriptModel
+import java.io.DataInput
 import java.io.DataInputStream
+import java.io.DataOutput
 import java.io.DataOutputStream
 
 internal object KotlinDslScriptModels {
-    private val attribute = FileAttribute("kotlin-dsl-script-models", 2, false)
+    private val attribute = FileAttribute("kotlin-dsl-script-models", 3, false)
 
-    fun read(project: Project): ConfigurationData? {
-        return attribute.readAttribute(project.projectFile ?: return null)?.use {
-            readKotlinDslScriptModels(it)
+    fun read(buildRoot: VirtualFile): ConfigurationData? {
+        return attribute.readAttribute(buildRoot)?.use {
+            it.readNullable {
+                readKotlinDslScriptModels(it)
+            }
         }
     }
 
-    fun write(project: Project, configuration: ConfigurationData) {
-        attribute.writeAttribute(project.projectFile ?: return).use {
-            writeKotlinDslScriptModels(it, configuration)
+    fun write(buildRoot: VirtualFile, configuration: ConfigurationData?) {
+        attribute.writeAttribute(buildRoot).use {
+            it.writeNullable(configuration) {
+                writeKotlinDslScriptModels(this, it)
+            }
         }
+    }
+
+    fun remove(buildRoot: VirtualFile) {
+        write(buildRoot, null)
     }
 }
 
-internal fun writeKotlinDslScriptModels(output: DataOutputStream, data: ConfigurationData) {
+internal fun writeKotlinDslScriptModels(output: DataOutput, data: ConfigurationData) {
     val strings = StringsPool.writer(output)
     strings.addStrings(data.templateClasspath)
-    for ((_, models) in data.models) {
-        models.forEach {
-            strings.addString(it.file)
-            strings.addStrings(it.classPath)
-            strings.addStrings(it.sourcePath)
-            strings.addStrings(it.imports)
-        }
+    data.models.forEach {
+        strings.addString(it.file)
+        strings.addStrings(it.classPath)
+        strings.addStrings(it.sourcePath)
+        strings.addStrings(it.imports)
     }
-
     strings.writeHeader()
     strings.writeStringIds(data.templateClasspath)
 
-    output.writeList(data.models.entries) {
-        val (projectId, models) = it
-        output.writeList(projectId.paths) {
-            output.writeInt(it)
-        }
-        output.writeList(models) {
-            strings.writeStringId(it.file)
-            output.writeString(it.inputs.sections)
-            output.writeLong(it.inputs.inputsTS)
-            strings.writeStringIds(it.classPath)
-            strings.writeStringIds(it.sourcePath)
-            strings.writeStringIds(it.imports)
-        }
-
+    output.writeList(data.models) {
+        strings.writeStringId(it.file)
+        output.writeString(it.inputs.sections)
+        output.writeLong(it.inputs.inputsTS)
+        strings.writeStringIds(it.classPath)
+        strings.writeStringIds(it.sourcePath)
+        strings.writeStringIds(it.imports)
     }
 }
 
@@ -67,31 +68,24 @@ internal fun readKotlinDslScriptModels(input: DataInputStream): ConfigurationDat
 
     val templateClasspath = strings.readStrings()
 
-    val models = hashMapOf<GradleProjectId, List<KotlinDslScriptModel>>()
-    input.readList {
-        val projectPaths = input.readList {
-            input.readInt()
-        }
-        val scriptModels = input.readList {
-            KotlinDslScriptModel(
-                strings.readString(),
-                GradleKotlinScriptConfigurationInputs(input.readString(), input.readLong()),
-                strings.readStrings(),
-                strings.readStrings(),
-                strings.readStrings(),
-                listOf()
-            )
-        }
-        models[GradleProjectId(projectPaths)] = scriptModels
+    val models = input.readList {
+        KotlinDslScriptModel(
+            strings.readString(),
+            GradleKotlinScriptConfigurationInputs(input.readString(), input.readLong()),
+            strings.readStrings(),
+            strings.readStrings(),
+            strings.readStrings(),
+            listOf()
+        )
     }
 
     return ConfigurationData(templateClasspath, models)
 }
 
 private object StringsPool {
-    fun writer(output: DataOutputStream) = Writer(output)
+    fun writer(output: DataOutput) = Writer(output)
 
-    class Writer(val output: DataOutputStream) {
+    class Writer(val output: DataOutput) {
         var freeze = false
         val ids = mutableMapOf<String, Int>()
 
@@ -146,12 +140,12 @@ private object StringsPool {
     }
 }
 
-private inline fun <T> DataOutputStream.writeList(list: Collection<T>, write: (T) -> Unit) {
+private inline fun <T> DataOutput.writeList(list: Collection<T>, write: (T) -> Unit) {
     writeInt(list.size)
     list.forEach { write(it) }
 }
 
-private inline fun <T> DataInputStream.readList(read: () -> T): List<T> {
+private inline fun <T> DataInput.readList(read: () -> T): List<T> {
     val n = readInt()
     val result = ArrayList<T>(n)
     repeat(n) {

@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.idea.scripting.gradle
 
-import org.jetbrains.kotlin.idea.scripting.gradle.importing.GradleProjectId
 import org.jetbrains.kotlin.idea.scripting.gradle.importing.KotlinDslScriptModel
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -17,37 +16,33 @@ import kotlin.test.assertEquals
 class KotlinDslScriptModelsTest {
     @Test
     fun write() {
-        val buffer = ByteArrayOutputStream()
-
-        val conf = ConfigurationData(
+        val data = ConfigurationData(
             listOf("a", "b", "c"),
-            hashMapOf(
-                GradleProjectId(listOf("path1".hashCode(), "path2".hashCode())) to
-                        listOf(
-                            KotlinDslScriptModel(
-                                "a",
-                                GradleKotlinScriptConfigurationInputs("b", 1),
-                                listOf("c", "a", "b"),
-                                listOf("b", "c", "a"),
-                                listOf("i", "c", "b"),
-                                listOf()
-                            ),
-                            KotlinDslScriptModel(
-                                "a",
-                                GradleKotlinScriptConfigurationInputs("b", 1),
-                                listOf("c", "a", "b"),
-                                listOf("b", "c", "a"),
-                                listOf("i", "c", "b"),
-                                listOf()
-                            )
-                        )
+            listOf(
+                KotlinDslScriptModel(
+                    "a",
+                    GradleKotlinScriptConfigurationInputs("b", 1),
+                    listOf("c", "a", "b"),
+                    listOf("b", "c", "a"),
+                    listOf("i", "c", "b"),
+                    listOf()
+                ),
+                KotlinDslScriptModel(
+                    "a",
+                    GradleKotlinScriptConfigurationInputs("b", 1),
+                    listOf("c", "a", "b"),
+                    listOf("b", "c", "a"),
+                    listOf("i", "c", "b"),
+                    listOf()
+                )
             )
         )
 
-        writeKotlinDslScriptModels(DataOutputStream(buffer), conf)
+        val buffer = ByteArrayOutputStream()
+        writeKotlinDslScriptModels(DataOutputStream(buffer), data)
 
         val restored = readKotlinDslScriptModels(DataInputStream(ByteArrayInputStream(buffer.toByteArray())))
 
-        assertEquals(conf.toString(), restored.toString())
+        assertEquals(data.toString(), restored.toString())
     }
 }

@@ -450,6 +450,8 @@
 
     <codeInsight.nonBlockingContextChecker implementation="org.jetbrains.kotlin.idea.inspections.blockingCallsDetection.CoroutineNonBlockingContextChecker"/>
 
+    <codeInsight.inlayProvider language="kotlin" implementationClass="org.jetbrains.kotlin.idea.codeInsight.KotlinCodeVisionProvider"/>
+
     <defaultHighlightingSettingProvider language="kotlin" implementation="org.jetbrains.kotlin.idea.highlighter.KotlinDefaultHighlightingSettingsProvider"/>
 
     <typeDeclarationProvider implementation="org.jetbrains.kotlin.idea.codeInsight.KotlinTypeDeclarationProvider"/>

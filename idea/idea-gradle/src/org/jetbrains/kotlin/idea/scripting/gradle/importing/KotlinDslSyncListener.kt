@@ -14,11 +14,6 @@ import org.jetbrains.kotlin.idea.framework.GRADLE_SYSTEM_ID
 import org.jetbrains.kotlin.idea.scripting.gradle.getJavaHomeForGradleProject
 import org.jetbrains.kotlin.psi.NotNullableUserDataProperty
 
-var Project.kotlinDslModels: MutableMap<ExternalTaskId, KotlinDslScriptModelsForGradleProject>
-        by NotNullableUserDataProperty<Project, MutableMap<ExternalTaskId, KotlinDslScriptModelsForGradleProject>>(
-            Key("Kotlin DSL Scripts Models"), hashMapOf()
-        )
-
 data class KotlinDslScriptModelsForGradleProject(
     val gradleProjectPaths: HashSet<String> = hashSetOf(),
     val models: HashSet<KotlinDslScriptModel> = hashSetOf()

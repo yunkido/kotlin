@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.idea.scripting.gradle.importing
 import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.model.task.ExternalSystemTaskId
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VfsUtil
 import org.gradle.tooling.model.kotlin.dsl.EditorReportSeverity
@@ -17,6 +18,7 @@ import org.jetbrains.kotlin.idea.scripting.gradle.GradleScriptInputsWatcher
 import org.jetbrains.kotlin.idea.scripting.gradle.GradleScriptingSupport
 import org.jetbrains.kotlin.idea.scripting.gradle.getGradleScriptInputsStamp
 import org.jetbrains.kotlin.idea.scripting.gradle.getJavaHomeForGradleProject
+import org.jetbrains.kotlin.psi.NotNullableUserDataProperty
 import org.jetbrains.kotlin.scripting.definitions.findScriptDefinition
 import org.jetbrains.kotlin.scripting.resolve.ScriptCompilationConfigurationWrapper
 import org.jetbrains.kotlin.scripting.resolve.VirtualFileScriptSource
@@ -27,6 +29,11 @@ import kotlin.script.experimental.api.*
 import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.jdkHome
 import kotlin.script.experimental.jvm.jvm
+
+var Project.kotlinDslModels: MutableMap<ExternalTaskId, KotlinDslScriptModelsForGradleProject>
+        by NotNullableUserDataProperty<Project, MutableMap<ExternalTaskId, KotlinDslScriptModelsForGradleProject>>(
+            Key("Kotlin DSL Scripts Models"), hashMapOf()
+        )
 
 fun processScriptModel(
     resolverCtx: ProjectResolverContext,

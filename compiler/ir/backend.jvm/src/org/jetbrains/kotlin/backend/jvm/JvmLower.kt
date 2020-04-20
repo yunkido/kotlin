@@ -277,7 +277,6 @@ private val kotlinNothingValueExceptionPhase = makeIrFilePhase(
 
 @Suppress("Reformat")
 private val jvmFilePhases =
-        renameAnonymousParametersLowering then
         typeAliasAnnotationMethodsPhase then
         stripTypeAliasDeclarationsPhase then
         provisionalFunctionExpressionPhase then

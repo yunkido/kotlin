@@ -29,6 +29,7 @@ import com.intellij.psi.search.searches.DirectClassInheritorsSearch
 import com.intellij.psi.search.searches.OverridingMethodsSearch
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.ui.layout.panel
+import com.intellij.util.ArrayUtil
 import org.jetbrains.kotlin.asJava.LightClassUtil
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinBundle
@@ -38,6 +39,7 @@ import org.jetbrains.kotlin.utils.SmartList
 import java.awt.Point
 import java.awt.event.MouseEvent
 import java.text.MessageFormat
+import java.util.*
 import javax.swing.JPanel
 
 @Suppress("UnstableApiUsage")
@@ -159,9 +161,8 @@ class KotlinCodeVisionProvider : InlayHintsProvider<KotlinCodeVisionProvider.Kot
                     }
                 }
             }
-/*
 
-            if (usagesCount > 0) {
+            if (hints.isNotEmpty()) {
 
                 val offset = element.textRange.startOffset
                 val line: Int = editor.document.getLineNumber(offset)
@@ -192,7 +193,6 @@ class KotlinCodeVisionProvider : InlayHintsProvider<KotlinCodeVisionProvider.Kot
                 }) { e: MouseEvent? -> true }
                 sink.addBlockElement(lineStart, true, true, 0, withAppearingSettings)
             }
-*/
             return true
         }
 

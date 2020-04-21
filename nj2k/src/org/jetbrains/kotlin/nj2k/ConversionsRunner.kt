@@ -80,7 +80,8 @@ object ConversionsRunner {
         RemoveRedundantQualifiersForCallsConversion(context),
         FilterImportsConversion(context),
         MoveInitBlocksToTheEndConversion(context),
-        AddElementsInfoConversion(context)
+        AddElementsInfoConversion(context),
+        FunctionalInterfacesConverter(context),
     )
 
     fun doApply(trees: List<JKTreeRoot>, context: NewJ2kConverterContext) {

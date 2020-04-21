@@ -125,28 +125,9 @@ interface ScriptConfigurationManager {
         fun getInstance(project: Project): ScriptConfigurationManager =
             ServiceManager.getService(project, ScriptConfigurationManager::class.java)
 
-        fun getScriptDefaultSdk(project: Project): Sdk? {
-            val projectSdk = ProjectRootManager.getInstance(project).projectSdk?.takeIf { it.canBeUsedForScript() }
-            if (projectSdk != null) return projectSdk
-
-            val anyJavaSdk = getAllProjectSdks().find { it.canBeUsedForScript() }
-            if (anyJavaSdk != null) {
-                return anyJavaSdk
-            }
-
-            LOG.warn(
-                "Default Script SDK is null: " +
-                        "projectSdk = ${ProjectRootManager.getInstance(project).projectSdk}, " +
-                        "all sdks = ${getAllProjectSdks().joinToString("\n")}"
-            )
-            return null
-        }
-
         fun toVfsRoots(roots: Iterable<File>): List<VirtualFile> {
             return roots.mapNotNull { it.classpathEntryToVfs() }
         }
-
-        private fun Sdk.canBeUsedForScript() = sdkType is JavaSdkType
 
         private fun File.classpathEntryToVfs(): VirtualFile? {
             val res = when {

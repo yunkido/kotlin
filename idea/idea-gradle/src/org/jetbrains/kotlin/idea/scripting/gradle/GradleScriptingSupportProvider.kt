@@ -108,7 +108,6 @@ class GradleScriptingSupportProvider(val project: Project) : ScriptingSupport.Pr
                 GradleConstants.SYSTEM_ID
             )
 
-        val javaHome = gradleExeSettings.javaHome ?: return null
         val buildRoot = VfsUtil.findFile(Paths.get(externalProjectPath), true) ?: return null
         val data = dataProvider(buildRoot) ?: return null
 
@@ -116,7 +115,7 @@ class GradleScriptingSupportProvider(val project: Project) : ScriptingSupport.Pr
             rootsIndexer,
             project,
             buildRoot,
-            GradleKtsContext(File(javaHome)),
+            GradleKtsContext(gradleExeSettings.javaHome?.let { File(it) }),
             Configuration(data)
         )
     }

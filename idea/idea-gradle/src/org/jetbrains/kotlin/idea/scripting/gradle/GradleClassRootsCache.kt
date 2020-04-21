@@ -23,6 +23,8 @@ import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.jdkHome
 import kotlin.script.experimental.jvm.jvm
 
+
+
 class GradleClassRootsCache(
     val project: Project,
     val context: GradleKtsContext,
@@ -58,7 +60,7 @@ class GradleClassRootsCache(
         return firstScriptSdk
     }
 
-    override val firstScriptSdk: Sdk? = getScriptSdk(context.javaHome)
+    override val firstScriptSdk: Sdk? = getScriptSdkOrDefault(context.javaHome, project)
 
     // called to ensure that configuration for file is loaded
     // as we cannot force loading, we always return true
@@ -72,7 +74,7 @@ class GradleClassRootsCache(
             return ScriptClassRoots(
                 configuration.classFilePath,
                 configuration.sourcePath,
-                getScriptSdkOfDefault(context.javaHome, project)?.let { setOf(it) } ?: setOf()
+                getScriptSdkOrDefault(context.javaHome, project)?.let { setOf(it) } ?: setOf()
             )
         }
     }

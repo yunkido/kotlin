@@ -9,7 +9,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.containers.ConcurrentFactoryMap
-import org.jetbrains.kotlin.idea.core.script.ScriptConfigurationManager
+import com.jetbrains.rd.util.firstOrNull
 import org.jetbrains.kotlin.scripting.resolve.ScriptCompilationConfigurationWrapper
 import java.io.File
 
@@ -28,16 +28,13 @@ internal class DefaultClassRootsCache(
 
     private val scriptsSdksCache: Map<VirtualFile, Sdk?> =
         ConcurrentFactoryMap.createWeakMap { file ->
-            return@createWeakMap getScriptSdk(
-                all[file]?.javaHome
-            ) ?: ScriptConfigurationManager.getScriptDefaultSdk(project)
+            return@createWeakMap getScriptSdkOrDefault(all[file]?.javaHome, project)
         }
 
     override fun getScriptSdk(file: VirtualFile): Sdk? = scriptsSdksCache[file]
 
     override val firstScriptSdk: Sdk? by lazy {
-        val firstCachedScript = all.keys.firstOrNull() ?: return@lazy null
-        return@lazy getScriptSdk(firstCachedScript)
+        getScriptSdkOrDefault(all.firstOrNull()?.value?.javaHome, project)
     }
 
     companion object {
@@ -45,30 +42,18 @@ internal class DefaultClassRootsCache(
             project: Project,
             configuration: ScriptCompilationConfigurationWrapper
         ): ScriptClassRootsStorage.Companion.ScriptClassRoots {
-            val scriptSdk =
-                getScriptSdkOfDefault(
-                    configuration.javaHome,
-                    project
-                )
+            val scriptSdk = getScriptSdkOrDefault(configuration.javaHome, project)
             if (scriptSdk != null && !scriptSdk.isAlreadyIndexed(project)) {
                 return ScriptClassRootsStorage.Companion.ScriptClassRoots(
-                    toStringValues(
-                        configuration.dependenciesClassPath
-                    ),
-                    toStringValues(
-                        configuration.dependenciesSources
-                    ),
+                    toStringValues(configuration.dependenciesClassPath),
+                    toStringValues(configuration.dependenciesSources),
                     setOf(scriptSdk)
                 )
             }
 
             return ScriptClassRootsStorage.Companion.ScriptClassRoots(
-                toStringValues(
-                    configuration.dependenciesClassPath
-                ),
-                toStringValues(
-                    configuration.dependenciesSources
-                ),
+                toStringValues(configuration.dependenciesClassPath),
+                toStringValues(configuration.dependenciesSources),
                 emptySet()
             )
         }
@@ -82,8 +67,7 @@ internal class DefaultClassRootsCache(
             val sdks = mutableSetOf<Sdk>()
 
             for ((_, configuration) in all) {
-                val scriptSdk =
-                    getScriptSdk(configuration.javaHome)
+                val scriptSdk = getScriptSdkOrDefault(configuration.javaHome, project)
                 if (scriptSdk != null && !scriptSdk.isAlreadyIndexed(project)) {
                     sdks.add(scriptSdk)
                 }

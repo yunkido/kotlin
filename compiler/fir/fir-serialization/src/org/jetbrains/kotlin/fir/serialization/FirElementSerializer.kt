@@ -569,20 +569,6 @@ class FirElementSerializer private constructor(
                 }
                 return lowerBound
             }
-            is ConeCapturedType -> {
-                val lowerType = type.lowerType
-                return if (lowerType != null) {
-                    typeProto(lowerType)
-                } else {
-                    typeProto(type.constructor.supertypes!!.first())
-                }
-            }
-            is ConeDefinitelyNotNullType -> {
-                return typeProto(type.original)
-            }
-            is ConeIntersectionType -> {
-                return typeProto(type.intersectedTypes.first())
-            }
             is ConeClassLikeType -> {
                 if (type.isSuspendFunctionType(session)) {
                     val runtimeFunctionType = transformSuspendFunctionToRuntimeFunctionType(type)
@@ -600,8 +586,8 @@ class FirElementSerializer private constructor(
                     builder.typeParameter = getTypeParameterId(typeParameter)
                 }
             }
-            is ConeLookupTagBasedType, is ConeStubType -> {
-                throw AssertionError("Should not be here")
+            else -> {
+                throw AssertionError("Should not be here: ${type::class.java}")
             }
         }
 

@@ -5,20 +5,26 @@
 
 package org.jetbrains.kotlin.idea.codeInsight
 
+import com.intellij.codeInsight.daemon.impl.MarkerType
 import com.intellij.codeInsight.hints.*
 import com.intellij.codeInsight.hints.presentation.AttributesTransformerPresentation
 import com.intellij.codeInsight.hints.presentation.InlayPresentation
 import com.intellij.codeInsight.hints.presentation.MouseButton
 import com.intellij.codeInsight.hints.presentation.PresentationFactory
 import com.intellij.codeInsight.hints.settings.InlayHintsConfigurable
+import com.intellij.codeInsight.navigation.actions.GotoDeclarationAction
+import com.intellij.internal.statistic.eventLog.FeatureUsageData
 import com.intellij.internal.statistic.service.fus.collectors.FUCounterUsageLogger
 import com.intellij.lang.Language
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.colors.EditorColors
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.markup.EffectType
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.search.searches.DirectClassInheritorsSearch
 import com.intellij.psi.search.searches.OverridingMethodsSearch
 import com.intellij.psi.search.searches.ReferencesSearch
@@ -31,6 +37,7 @@ import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.utils.SmartList
 import java.awt.Point
 import java.awt.event.MouseEvent
+import java.text.MessageFormat
 import javax.swing.JPanel
 
 @Suppress("UnstableApiUsage")
@@ -94,25 +101,61 @@ class KotlinCodeVisionProvider : InlayHintsProvider<KotlinCodeVisionProvider.Kot
                 return true
             }
 
-            val hints: List<InlResult> = SmartList() // todo fill them
+            val hints: MutableList<InlResult> = SmartList()
 
             if (settings.showUsages) {
-                val toList = ReferencesSearch.search(element).toList()
-                //todo fill hints
+                val usagesNum = ReferencesSearch.search(element).count()
+                val format = "{0,choice, 0#no usages|1#1 usage|2#{0,number} usages}"
+                val usagesHint = StringUtil.capitalizeWords(MessageFormat.format(format, usagesNum), true)
+                hints.add(object : InlResult {
+                    override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
+                        FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, USAGES_CLICKED_EVENT_ID)
+                        GotoDeclarationAction.startFindUsages(editor, editor.project!!, element)
+                    }
+
+                    override fun getRegularText(): String {
+                        return usagesHint
+                    }
+                })
             }
 
             if (settings.showImplementations) {
                 if (element is KtFunction) {
                     //val lightClassMethod = LightClassUtil.getLightClassMethod(element)
                     LightClassUtil.getLightClassMethod(element)?.let { it ->
-                        val toList = OverridingMethodsSearch.search(it, true).toList()
-                        //todo fill hints
+                        val overridingNum = OverridingMethodsSearch.search(it, true).count()
+
+                        hints.add(object : InlResult {
+                            override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
+                                val data = FeatureUsageData().addData("location", "method")
+                                FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
+                                val navigationHandler = MarkerType.OVERRIDDEN_METHOD.navigationHandler
+                                navigationHandler.navigate(event, (element as PsiMethod).nameIdentifier)
+                            }
+
+                            override fun getRegularText(): String {
+                                val prop = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
+                                return MessageFormat.format(prop, overridingNum)
+                            }
+                        })
                     }
                 } else if (element is KtClass) {
                     val lightClass = element.toLightClass()
                     lightClass?.let {
-                        val list = DirectClassInheritorsSearch.search(it, element.useScope, true).toList()
-                        //todo fill hints
+                        val inheritorsNum = DirectClassInheritorsSearch.search(it, element.useScope, true).count()
+                        hints.add(object : InlResult {
+                            override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
+                                val data = FeatureUsageData().addData("location", "class")
+                                FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
+                                val navigationHandler = MarkerType.SUBCLASSED_CLASS.navigationHandler
+                                navigationHandler.navigate(event, (element as PsiClass).nameIdentifier)
+                            }
+
+                            override fun getRegularText(): String {
+                                val prop = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
+                                return MessageFormat.format(prop, inheritorsNum)
+                            }
+                        })
                     }
                 }
             }

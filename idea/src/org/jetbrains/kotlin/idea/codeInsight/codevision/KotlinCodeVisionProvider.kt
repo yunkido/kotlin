@@ -3,7 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-package org.jetbrains.kotlin.idea.codeInsight
+package org.jetbrains.kotlin.idea.codeInsight.codevision
 
 import com.intellij.codeInsight.daemon.impl.MarkerType
 import com.intellij.codeInsight.hints.*
@@ -86,7 +86,10 @@ class KotlinCodeVisionProvider : InlayHintsProvider<KotlinCodeVisionProvider.Kot
     ): InlayHintsCollector? {
 
 
-        return KotlinCodeVisionHintsCollector(editor, settings)
+        return KotlinCodeVisionHintsCollector(
+            editor,
+            settings
+        )
     }
 
 
@@ -127,7 +130,8 @@ class KotlinCodeVisionProvider : InlayHintsProvider<KotlinCodeVisionProvider.Kot
                     LightClassUtil.getLightClassMethod(element)?.let { it ->
                         val overridingNum = OverridingMethodsSearch.search(it, true).count()
 
-                        hints.add(object : InlResult {
+                        hints.add(object :
+                                      InlResult {
                             override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
                                 val data = FeatureUsageData().addData("location", "method")
                                 FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
@@ -145,7 +149,8 @@ class KotlinCodeVisionProvider : InlayHintsProvider<KotlinCodeVisionProvider.Kot
                     val lightClass = element.toLightClass()
                     lightClass?.let {
                         val inheritorsNum = DirectClassInheritorsSearch.search(it, element.useScope, true).count()
-                        hints.add(object : InlResult {
+                        hints.add(object :
+                                      InlResult {
                             override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
                                 val data = FeatureUsageData().addData("location", "class")
                                 FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
@@ -229,7 +234,8 @@ class KotlinCodeVisionProvider : InlayHintsProvider<KotlinCodeVisionProvider.Kot
         }
 
         private fun settings(factory: PresentationFactory, element: PsiElement, editor: Editor): InlayPresentation {
-            return createPresentation(factory, element, editor, object : InlResult {
+            return createPresentation(factory, element, editor, object :
+                InlResult {
 
                 override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
                     val project = element.project

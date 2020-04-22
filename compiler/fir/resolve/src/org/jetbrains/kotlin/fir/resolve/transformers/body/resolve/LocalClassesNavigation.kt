@@ -88,9 +88,11 @@ private class NavigationInfoVisitor : FirDefaultVisitorVoid() {
         allMembers += callableMemberDeclaration
         if (callableMemberDeclaration.returnTypeRef !is FirImplicitTypeRef) return
         resultingMap[callableMemberDeclaration] = currentPath.last()
+        callableMemberDeclaration.acceptChildren(this)
     }
 
     override fun visitAnonymousInitializer(anonymousInitializer: FirAnonymousInitializer) {
         allMembers += anonymousInitializer
+        anonymousInitializer.acceptChildren(this)
     }
 }

@@ -5,22 +5,19 @@
 
 package org.jetbrains.kotlin.idea.inspections
 
-import com.intellij.codeInspection.LocalQuickFix
-import com.intellij.codeInspection.ProblemDescriptor
-import com.intellij.codeInspection.ProblemHighlightType
-import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.codeInspection.*
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 
-class ConvertNaNEqualityInspection : AbstractKotlinInspection() {
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+class ConvertNaNEqualityInspection : ResolveAbstractKotlinInspection() {
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor {
         return binaryExpressionVisitor { expression ->
-            if (expression.left.isNaNExpression() || expression.right.isNaNExpression()) {
+            val resolver = session.resolver()
+            if (expression.left.isNaNExpression(resolver) || expression.right.isNaNExpression(resolver)) {
                 val inverted = when (expression.operationToken) {
                     KtTokens.EXCLEQ -> true
                     KtTokens.EQEQ -> false
@@ -30,14 +27,14 @@ class ConvertNaNEqualityInspection : AbstractKotlinInspection() {
                     expression,
                     KotlinBundle.message("equality.check.with.nan.should.be.replaced.with.isnan"),
                     ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
-                    ConvertNaNEqualityQuickFix(inverted)
+                    ConvertNaNEqualityQuickFix(inverted, resolver)
                 )
             }
         }
     }
 }
 
-private class ConvertNaNEqualityQuickFix(val inverted: Boolean) : LocalQuickFix {
+private class ConvertNaNEqualityQuickFix(val inverted: Boolean, val resolver: KtElementAnalyzer) : LocalQuickFix {
     override fun getName() = KotlinBundle.message("convert.na.n.equality.quick.fix.text")
 
     override fun getFamilyName() = name
@@ -46,8 +43,8 @@ private class ConvertNaNEqualityQuickFix(val inverted: Boolean) : LocalQuickFix 
         val element = descriptor.psiElement as? KtBinaryExpression ?: return
 
         val other = when {
-            element.left.isNaNExpression() -> element.right ?: return
-            element.right.isNaNExpression() -> element.left ?: return
+            element.left.isNaNExpression(resolver) -> element.right ?: return
+            element.right.isNaNExpression(resolver) -> element.left ?: return
             else -> return
         }
         val pattern = if (inverted) "!$0.isNaN()" else "$0.isNaN()"
@@ -57,8 +54,8 @@ private class ConvertNaNEqualityQuickFix(val inverted: Boolean) : LocalQuickFix 
 
 private val NaNSet = setOf("kotlin.Double.Companion.NaN", "java.lang.Double.NaN", "kotlin.Float.Companion.NaN", "java.lang.Float.NaN")
 
-private fun KtExpression?.isNaNExpression(): Boolean {
+private fun KtExpression?.isNaNExpression(resolver: KtElementAnalyzer): Boolean {
     if (this?.text?.endsWith("NaN") != true) return false
-    val fqName = this.resolveToCall()?.resultingDescriptor?.fqNameUnsafe?.asString()
+    val fqName = resolver.resolveToCall(this)?.resultingDescriptor?.fqNameUnsafe?.asString()
     return NaNSet.contains(fqName)
 }

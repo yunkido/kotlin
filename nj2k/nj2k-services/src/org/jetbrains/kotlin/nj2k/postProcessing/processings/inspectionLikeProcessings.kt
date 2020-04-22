@@ -390,7 +390,7 @@ class RedundantExplicitTypeInspectionBasedProcessing : InspectionLikeProcessingF
 
 class CanBeValInspectionBasedProcessing : InspectionLikeProcessingForElement<KtDeclaration>(KtDeclaration::class.java) {
     override fun isApplicableTo(element: KtDeclaration, settings: ConverterSettings?): Boolean =
-        CanBeValInspection.canBeVal(element, ignoreNotUsedVals = false)
+        CanBeValInspection.canBeVal(element, ignoreNotUsedVals = false, resolver = KtElementAnalyzer.default)
 
     override fun apply(element: KtDeclaration) {
         if (element !is KtValVarKeywordOwner) return
@@ -460,7 +460,7 @@ class RedundantSemicolonInspectionBasedProcessing :
 class ExplicitThisInspectionBasedProcessing :
     InspectionLikeProcessingForElement<KtExpression>(KtExpression::class.java) {
     override fun isApplicableTo(element: KtExpression, settings: ConverterSettings?): Boolean =
-        ExplicitThisInspection.hasExplicitThis(element)
+        ExplicitThisInspection.hasExplicitThis(element, KtElementAnalyzer.default)
 
     override fun apply(element: KtExpression) {
         ExplicitThisExpressionFix.removeExplicitThisExpression(

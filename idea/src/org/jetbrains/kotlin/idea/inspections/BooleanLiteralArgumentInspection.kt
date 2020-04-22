@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.idea.inspections
 
 import com.intellij.codeInspection.IntentionWrapper
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemHighlightType.GENERIC_ERROR_OR_WARNING
 import com.intellij.codeInspection.ProblemHighlightType.INFORMATION
 import com.intellij.codeInspection.ProblemsHolder
@@ -13,26 +14,25 @@ import com.intellij.codeInspection.ui.MultipleCheckboxOptionsPanel
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.diagnostics.Severity
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
 import org.jetbrains.kotlin.idea.intentions.AddNameToArgumentIntention
 import org.jetbrains.kotlin.idea.intentions.AddNamesToCallArgumentsIntention
 import org.jetbrains.kotlin.idea.intentions.AddNamesToFollowingArgumentsIntention
 import org.jetbrains.kotlin.idea.project.languageVersionSettings
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
+import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 import javax.swing.JComponent
 
 class BooleanLiteralArgumentInspection(
     @JvmField var reportSingle: Boolean = false
-) : AbstractKotlinInspection() {
+) : ResolveAbstractKotlinInspection() {
     private fun KtExpression.isBooleanLiteral(): Boolean =
         this is KtConstantExpression && node.elementType == KtNodeTypes.BOOLEAN_CONSTANT
 
     private fun KtValueArgument.isUnnamedBooleanLiteral(): Boolean =
         !isNamed() && getArgumentExpression()?.isBooleanLiteral() == true
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean) =
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession) =
         valueArgumentVisitor(fun(argument: KtValueArgument) {
             if (argument.isNamed()) return
             val argumentExpression = argument.getArgumentExpression() ?: return
@@ -40,10 +40,15 @@ class BooleanLiteralArgumentInspection(
             val call = argument.getStrictParentOfType<KtCallExpression>() ?: return
             val valueArguments = call.valueArguments
 
-            if (argumentExpression.analyze().diagnostics.forElement(argumentExpression).any { it.severity == Severity.ERROR }) return
+            val resolver = session.resolver()
+            if (resolver.analyze(argumentExpression, BodyResolveMode.PARTIAL_WITH_DIAGNOSTICS).diagnostics.forElement(argumentExpression)
+                    .any { it.severity == Severity.ERROR }
+            ) {
+                return
+            }
             if (AddNameToArgumentIntention.detectNameToAdd(argument, shouldBeLastUnnamed = false) == null) return
 
-            val resolvedCall = call.resolveToCall() ?: return
+            val resolvedCall = resolver.resolveToCall(call) ?: return
             if (!resolvedCall.candidateDescriptor.hasStableParameterNames()) return
             val languageVersionSettings = call.languageVersionSettings
             if (valueArguments.any {

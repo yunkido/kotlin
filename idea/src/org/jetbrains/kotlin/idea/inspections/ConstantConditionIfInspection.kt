@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.idea.inspections
 
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemsHolder
@@ -14,7 +15,6 @@ import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.core.replaced
 import org.jetbrains.kotlin.idea.intentions.branchedTransformations.isElseIf
 import org.jetbrains.kotlin.idea.intentions.branchedTransformations.unwrapBlockOrParenthesis
@@ -30,14 +30,14 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.bindingContextUtil.isUsedAsExpression
 import org.jetbrains.kotlin.resolve.calls.callUtil.getType
 import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluator
-import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 
-class ConstantConditionIfInspection : AbstractKotlinInspection() {
+class ConstantConditionIfInspection : ResolveAbstractKotlinInspection() {
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor {
         return ifExpressionVisitor { expression ->
-            val constantValue = expression.getConditionConstantValueIfAny() ?: return@ifExpressionVisitor
-            val fixes = collectFixes(expression, constantValue)
+            val helper = ConstantConditionIfInspectionHelper(session.resolver())
+            val constantValue = helper.getConditionConstantValueIfAny(expression) ?: return@ifExpressionVisitor
+            val fixes = helper.collectFixes(expression, constantValue)
             holder.registerProblem(
                 expression.condition!!,
                 KotlinBundle.message("condition.is.always.0", constantValue),
@@ -46,26 +46,28 @@ class ConstantConditionIfInspection : AbstractKotlinInspection() {
         }
     }
 
-    companion object {
-        private fun KtIfExpression.getConditionConstantValueIfAny(): Boolean? {
-            val context = condition?.analyze(BodyResolveMode.PARTIAL_WITH_CFA) ?: return null
-            return condition?.constantBooleanValue(context)
+    class ConstantConditionIfInspectionHelper(private val ktElementResolver: KtElementAnalyzer) {
+        fun getConditionConstantValueIfAny(expression: KtIfExpression): Boolean? {
+            val context = expression.condition?.let { ktElementResolver.analyzeWithCfa(it) } ?: return null
+            return expression.condition?.constantBooleanValue(context)
         }
 
-        private fun collectFixes(
+        fun collectFixes(
             expression: KtIfExpression,
-            constantValue: Boolean? = expression.getConditionConstantValueIfAny()
+            constantValue: Boolean?
         ): List<ConstantConditionIfFix> {
             if (constantValue == null) return emptyList()
             val fixes = mutableListOf<ConstantConditionIfFix>()
 
             if (expression.branch(constantValue) != null) {
                 val keepBraces = expression.isElseIf() && expression.branch(constantValue) is KtBlockExpression
-                fixes += SimplifyFix(
-                    constantValue,
-                    expression.isUsedAsExpression(expression.analyze(BodyResolveMode.PARTIAL_WITH_CFA)),
-                    keepBraces
-                )
+                ktElementResolver.analyzeWithCfa(expression).let {
+                    fixes += SimplifyFix(
+                        constantValue,
+                        expression.isUsedAsExpression(it),
+                        keepBraces
+                    )
+                }
             }
 
             if (!constantValue && expression.`else` == null) {
@@ -74,13 +76,9 @@ class ConstantConditionIfInspection : AbstractKotlinInspection() {
 
             return fixes
         }
-
-        fun applyFixIfSingle(ifExpression: KtIfExpression) {
-            collectFixes(ifExpression).singleOrNull()?.applyFix(ifExpression)
-        }
     }
 
-    private interface ConstantConditionIfFix : LocalQuickFix {
+    interface ConstantConditionIfFix : LocalQuickFix {
         fun applyFix(ifExpression: KtIfExpression)
     }
 
@@ -128,7 +126,7 @@ class ConstantConditionIfInspection : AbstractKotlinInspection() {
 
 private fun KtIfExpression.branch(thenBranch: Boolean) = if (thenBranch) then else `else`
 
-private fun KtExpression.constantBooleanValue(context: BindingContext): Boolean? {
+fun KtExpression.constantBooleanValue(context: BindingContext): Boolean? {
     val enumEntriesComparison = enumEntriesComparison()
     if (enumEntriesComparison != null) {
         return enumEntriesComparison

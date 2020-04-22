@@ -6,10 +6,7 @@
 package org.jetbrains.kotlin.idea.inspections
 
 import com.intellij.codeInsight.FileModificationService
-import com.intellij.codeInspection.InspectionsBundle
-import com.intellij.codeInspection.LocalQuickFix
-import com.intellij.codeInspection.ProblemDescriptor
-import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.codeInspection.*
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -17,14 +14,13 @@ import org.jetbrains.kotlin.idea.KotlinBundle
 import org.jetbrains.kotlin.idea.actions.generate.KotlinGenerateEqualsAndHashcodeAction
 import org.jetbrains.kotlin.idea.actions.generate.findDeclaredEquals
 import org.jetbrains.kotlin.idea.actions.generate.findDeclaredHashCode
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToDescriptorIfAny
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.classOrObjectVisitor
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import org.jetbrains.kotlin.resolve.source.getPsi
 
-object DeleteEqualsAndHashCodeFix : LocalQuickFix {
+class DeleteEqualsAndHashCodeFix(val resolver: KtElementAnalyzer) : LocalQuickFix {
     override fun getName() = KotlinBundle.message("delete.equals.and.hash.code.fix.text")
 
     override fun getFamilyName() = name
@@ -32,7 +28,7 @@ object DeleteEqualsAndHashCodeFix : LocalQuickFix {
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
         if (!FileModificationService.getInstance().preparePsiElementForWrite(descriptor.psiElement)) return
         val objectDeclaration = descriptor.psiElement.getStrictParentOfType<KtObjectDeclaration>() ?: return
-        val classDescriptor = objectDeclaration.resolveToDescriptorIfAny() ?: return
+        val classDescriptor = resolver.resolveToClassDescriptor(objectDeclaration) ?: return
         classDescriptor.findDeclaredEquals(false)?.source?.getPsi()?.delete()
         classDescriptor.findDeclaredHashCode(false)?.source?.getPsi()?.delete()
     }
@@ -57,11 +53,12 @@ sealed class GenerateEqualsOrHashCodeFix : LocalQuickFix {
     }
 }
 
-class EqualsOrHashCodeInspection : AbstractKotlinInspection() {
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+class EqualsOrHashCodeInspection : ResolveAbstractKotlinInspection() {
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor {
         return classOrObjectVisitor(fun(classOrObject) {
             val nameIdentifier = classOrObject.nameIdentifier ?: return
-            val classDescriptor = classOrObject.resolveToDescriptorIfAny() ?: return
+            val resolver = session.resolver()
+            val classDescriptor = resolver.resolveToClassDescriptor(classOrObject) ?: return
             val hasEquals = classDescriptor.findDeclaredEquals(false) != null
             val hasHashCode = classDescriptor.findDeclaredHashCode(false) != null
             if (!hasEquals && !hasHashCode) return
@@ -72,7 +69,7 @@ class EqualsOrHashCodeInspection : AbstractKotlinInspection() {
                     holder.registerProblem(
                         nameIdentifier,
                         KotlinBundle.message("equals.hashcode.in.object.declaration"),
-                        DeleteEqualsAndHashCodeFix
+                        DeleteEqualsAndHashCodeFix(resolver)
                     )
                 }
                 ClassKind.CLASS -> {

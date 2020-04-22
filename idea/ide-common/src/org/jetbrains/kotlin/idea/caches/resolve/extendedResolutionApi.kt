@@ -36,6 +36,12 @@ fun KtDeclaration.resolveToDescriptorIfAny(
 ): DeclarationDescriptor? {
     //TODO: BodyResolveMode.PARTIAL is not quite safe!
     val context = analyze(resolutionFacade, bodyResolveMode)
+    return resolveToDescriptorIfAny(context)
+}
+
+fun KtDeclaration.resolveToDescriptorIfAny(
+    context: BindingContext,
+): DeclarationDescriptor? {
     return if (this is KtParameter && hasValOrVar()) {
         context.get(BindingContext.PRIMARY_CONSTRUCTOR_PARAMETER, this)
     } else {
@@ -43,12 +49,20 @@ fun KtDeclaration.resolveToDescriptorIfAny(
     }
 }
 
+
 fun KtClassOrObject.resolveToDescriptorIfAny(
     resolutionFacade: ResolutionFacade,
     bodyResolveMode: BodyResolveMode = BodyResolveMode.PARTIAL
 ): ClassDescriptor? {
     return (this as KtDeclaration).resolveToDescriptorIfAny(resolutionFacade, bodyResolveMode) as? ClassDescriptor
 }
+
+fun KtClassOrObject.resolveToDescriptorIfAny(
+    context: BindingContext
+): ClassDescriptor? {
+    return (this as KtDeclaration).resolveToDescriptorIfAny(context) as? ClassDescriptor
+}
+
 
 fun KtNamedFunction.resolveToDescriptorIfAny(
     resolutionFacade: ResolutionFacade,
@@ -63,6 +77,13 @@ fun KtProperty.resolveToDescriptorIfAny(
 ): VariableDescriptor? {
     return (this as KtDeclaration).resolveToDescriptorIfAny(resolutionFacade, bodyResolveMode) as? VariableDescriptor
 }
+
+fun KtProperty.resolveToDescriptorIfAny(
+    bindingContext: BindingContext
+): VariableDescriptor? {
+    return (this as KtDeclaration).resolveToDescriptorIfAny(bindingContext) as? VariableDescriptor
+}
+
 
 fun KtParameter.resolveToParameterDescriptorIfAny(
     resolutionFacade: ResolutionFacade,

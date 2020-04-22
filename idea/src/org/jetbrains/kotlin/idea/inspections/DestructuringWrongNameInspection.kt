@@ -6,18 +6,18 @@
 package org.jetbrains.kotlin.idea.inspections
 
 import com.intellij.codeInsight.daemon.impl.quickfix.RenameElementFix
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.psi.destructuringDeclarationVisitor
 
-class DestructuringWrongNameInspection : AbstractKotlinInspection() {
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+class DestructuringWrongNameInspection : ResolveAbstractKotlinInspection() {
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor {
         return destructuringDeclarationVisitor(fun(destructuringDeclaration) {
             val initializer = destructuringDeclaration.initializer ?: return
-            val type = initializer.analyze().getType(initializer) ?: return
+            val type = session.resolver().analyzeFull(initializer).getType(initializer) ?: return
 
             val classDescriptor = type.constructor.declarationDescriptor as? ClassDescriptor ?: return
 

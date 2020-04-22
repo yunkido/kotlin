@@ -24,10 +24,13 @@ import org.jetbrains.kotlin.diagnostics.DiagnosticWithParameters2
 import org.jetbrains.kotlin.idea.KotlinBundle
 import org.jetbrains.kotlin.idea.core.replaced
 import org.jetbrains.kotlin.idea.inspections.ConstantConditionIfInspection
+import org.jetbrains.kotlin.idea.inspections.KtElementAnalyzer
+import org.jetbrains.kotlin.idea.inspections.constantBooleanValue
 import org.jetbrains.kotlin.idea.intentions.SimplifyBooleanWithConstantsIntention
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
+import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 
 class SimplifyComparisonFix(element: KtExpression, val value: Boolean) : KotlinQuickFixAction<KtExpression>(element) {
     override fun getFamilyName() = KotlinBundle.message("simplify.0.to.1", element.toString(), value)
@@ -48,10 +51,22 @@ class SimplifyComparisonFix(element: KtExpression, val value: Boolean) : KotlinQ
         }
 
         val ifExpression = result.getStrictParentOfType<KtIfExpression>()?.takeIf { it.condition == result }
-        if (ifExpression != null) ConstantConditionIfInspection.applyFixIfSingle(ifExpression)
+        if (ifExpression != null) applyFixIfSingle(ifExpression)
     }
 
-    companion object : KotlinSingleIntentionActionFactory() {
+    companion object Factory : KotlinSingleIntentionActionFactory() {
+        fun applyFixIfSingle(ifExpression: KtIfExpression) {
+            val constantValue = getConditionConstantValueIfAny(ifExpression)
+            val inspectionHelper = ConstantConditionIfInspection.ConstantConditionIfInspectionHelper(KtElementAnalyzer.default)
+            inspectionHelper.collectFixes(ifExpression, constantValue).singleOrNull()?.applyFix(ifExpression)
+        }
+
+        fun getConditionConstantValueIfAny(expression: KtIfExpression): Boolean? {
+            val context = expression.condition?.let { KtElementAnalyzer.default.analyze(it, BodyResolveMode.PARTIAL_WITH_CFA) } ?: return null
+            return expression.condition?.constantBooleanValue(context)
+        }
+
+
         override fun createAction(diagnostic: Diagnostic): IntentionAction? {
             val expression = diagnostic.psiElement as? KtExpression ?: return null
             val value = (diagnostic as? DiagnosticWithParameters2<*, *, *>)?.b as? Boolean ?: return null

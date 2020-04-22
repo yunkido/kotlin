@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.idea.inspections
 
 import com.intellij.codeInspection.IntentionWrapper
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.codeInspection.ex.EntryPointsManager
@@ -33,7 +34,6 @@ import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.effectiveVisibility
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
 import org.jetbrains.kotlin.idea.core.canBePrivate
 import org.jetbrains.kotlin.idea.core.isInheritable
 import org.jetbrains.kotlin.idea.core.isOverridable
@@ -48,34 +48,43 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.*
 
-class MemberVisibilityCanBePrivateInspection : AbstractKotlinInspection() {
+class MemberVisibilityCanBePrivateInspection : ResolveAbstractKotlinInspection() {
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun buildVisitor(
+        holder: ProblemsHolder,
+        isOnTheFly: Boolean,
+        session: LocalInspectionToolSession
+    ): PsiElementVisitor {
         return object : KtVisitorVoid() {
+            val elementAnalyzer = session.resolver()
+
             override fun visitProperty(property: KtProperty) {
                 super.visitProperty(property)
-                if (!property.isLocal && canBePrivate(property)) {
+                if (!property.isLocal && canBePrivate(property, elementAnalyzer)) {
                     registerProblem(holder, property)
                 }
             }
 
             override fun visitNamedFunction(function: KtNamedFunction) {
                 super.visitNamedFunction(function)
-                if (canBePrivate(function)) {
+                if (canBePrivate(function, elementAnalyzer)) {
                     registerProblem(holder, function)
                 }
             }
 
             override fun visitParameter(parameter: KtParameter) {
                 super.visitParameter(parameter)
-                if (parameter.isConstructorDeclaredProperty() && canBePrivate(parameter)) {
+                if (parameter.isConstructorDeclaredProperty() && canBePrivate(parameter, elementAnalyzer)) {
                     registerProblem(holder, parameter)
                 }
             }
         }
     }
 
-    private fun canBePrivate(declaration: KtNamedDeclaration): Boolean {
+    private fun canBePrivate(
+        declaration: KtNamedDeclaration,
+        resolver: KtElementAnalyzer
+    ): Boolean {
         if (declaration.hasModifier(KtTokens.PRIVATE_KEYWORD) || declaration.hasModifier(KtTokens.OVERRIDE_KEYWORD)) return false
         if (declaration.annotationEntries.isNotEmpty()) return false
 
@@ -84,7 +93,10 @@ class MemberVisibilityCanBePrivateInspection : AbstractKotlinInspection() {
         if (!inheritable && declaration.hasModifier(KtTokens.PROTECTED_KEYWORD)) return false //reported by ProtectedInFinalInspection
         if (declaration.isOverridable()) return false
 
-        val descriptor = (declaration.toDescriptor() as? DeclarationDescriptorWithVisibility) ?: return false
+        val declarationDescriptor = declaration.toDescriptor {
+            resolver.analyze(declaration)
+        } ?: return false
+        val descriptor = (declarationDescriptor as? DeclarationDescriptorWithVisibility) ?: return false
         when (descriptor.effectiveVisibility()) {
             EffectiveVisibility.Private, EffectiveVisibility.Local -> return false
         }
@@ -123,8 +135,8 @@ class MemberVisibilityCanBePrivateInspection : AbstractKotlinInspection() {
                 return@Processor false
             }
             val classOrObjectDescriptor = classOrObject.descriptor as? ClassDescriptor
-            if (classOrObjectDescriptor != null) {
-                val receiverType = (usage as? KtElement)?.resolveToCall()?.dispatchReceiver?.type
+            if (classOrObjectDescriptor != null && usage is KtElement) {
+                val receiverType = resolver.resolveToCall(usage)?.dispatchReceiver?.type
                 val receiverDescriptor = receiverType?.constructor?.declarationDescriptor
                 if (receiverDescriptor != null && receiverDescriptor != classOrObjectDescriptor) {
                     otherUsageFound = true

@@ -5,11 +5,10 @@
 
 package org.jetbrains.kotlin.idea.inspections
 
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.idea.caches.resolve.analyze
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
-import org.jetbrains.kotlin.idea.intentions.getCallableDescriptor
 import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
@@ -21,20 +20,23 @@ import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluat
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 
-abstract class AbstractPrimitiveRangeToInspection : AbstractKotlinInspection() {
-
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+abstract class AbstractPrimitiveRangeToInspection : ResolveAbstractKotlinInspection() {
+    override fun buildVisitor(
+        holder: ProblemsHolder,
+        isOnTheFly: Boolean,
+        session: LocalInspectionToolSession
+    ): PsiElementVisitor {
         return expressionVisitor { expression ->
             if (expression !is KtBinaryExpression && expression !is KtDotQualifiedExpression) return@expressionVisitor
 
-            val fqName = expression.getCallableDescriptor()?.fqNameUnsafe?.asString() ?: return@expressionVisitor
+            val fqName = session.resolver().getCallableDescriptor(expression)?.fqNameUnsafe?.asString() ?: return@expressionVisitor
             if (!fqName.matches(REGEX_RANGE_TO)) return@expressionVisitor
 
-            visitRangeToExpression(expression, holder)
+            visitRangeToExpression(expression, holder, session.resolver())
         }
     }
 
-    abstract fun visitRangeToExpression(expression: KtExpression, holder: ProblemsHolder)
+    abstract fun visitRangeToExpression(expression: KtExpression, holder: ProblemsHolder, elementAnalyzer: KtElementAnalyzer)
 
     companion object {
         private val REGEX_RANGE_TO = """kotlin.(Char|Byte|Short|Int|Long).rangeTo""".toRegex()
@@ -48,5 +50,3 @@ abstract class AbstractPrimitiveRangeToInspection : AbstractKotlinInspection() {
         }
     }
 }
-
-var q = 12

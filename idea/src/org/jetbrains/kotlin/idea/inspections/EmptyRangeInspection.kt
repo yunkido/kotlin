@@ -5,25 +5,20 @@
 
 package org.jetbrains.kotlin.idea.inspections
 
-import com.intellij.codeInspection.LocalQuickFix
-import com.intellij.codeInspection.ProblemDescriptor
-import com.intellij.codeInspection.ProblemHighlightType
-import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.codeInspection.*
 import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.intentions.getArguments
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.createExpressionByPattern
 import org.jetbrains.kotlin.resolve.BindingContext
-import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 
 class EmptyRangeInspection : AbstractPrimitiveRangeToInspection() {
-    override fun visitRangeToExpression(expression: KtExpression, holder: ProblemsHolder) {
+    override fun visitRangeToExpression(expression: KtExpression, holder: ProblemsHolder, resolver: KtElementAnalyzer) {
         val (left, right) = expression.getArguments() ?: return
 
-        val context = expression.analyze(BodyResolveMode.PARTIAL)
+        val context = resolver.analyze(expression)
         val startValue = left?.longValueOrNull(context) ?: return
         val endValue = right?.longValueOrNull(context) ?: return
 

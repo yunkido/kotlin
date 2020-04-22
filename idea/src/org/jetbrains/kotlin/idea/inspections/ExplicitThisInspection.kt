@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.idea.inspections
 
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemHighlightType.LIKE_UNUSED_SYMBOL
@@ -25,7 +26,6 @@ import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.intentions.getCallableDescriptor
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.idea.util.*
@@ -36,11 +36,11 @@ import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor
 import org.jetbrains.kotlin.synthetic.SyntheticJavaPropertyDescriptor
 import org.jetbrains.kotlin.types.typeUtil.isSubtypeOf
 
-class ExplicitThisInspection : AbstractKotlinInspection() {
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean) = object : KtVisitorVoid() {
+class ExplicitThisInspection : ResolveAbstractKotlinInspection() {
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession) = object : KtVisitorVoid() {
         override fun visitExpression(expression: KtExpression) {
             val thisExpression = expression.thisAsReceiverOrNull() ?: return
-            if (hasExplicitThis(expression)) {
+            if (hasExplicitThis(expression, session.resolver())) {
                 holder.registerProblem(
                     thisExpression,
                     KotlinBundle.message("redundant.explicit.this"),
@@ -58,14 +58,17 @@ class ExplicitThisInspection : AbstractKotlinInspection() {
             else -> null
         }
 
-        fun hasExplicitThis(expression: KtExpression): Boolean {
+        fun hasExplicitThis(
+            expression: KtExpression,
+            resolver: KtElementAnalyzer
+        ): Boolean {
             val thisExpression = expression.thisAsReceiverOrNull() ?: return false
             val reference = when (expression) {
                 is KtCallableReferenceExpression -> expression.callableReference
                 is KtDotQualifiedExpression -> expression.selectorExpression as? KtReferenceExpression
                 else -> null
             } ?: return false
-            val context = expression.analyze()
+            val context = resolver.analyze(expression)
             val scope = expression.getResolutionScope(context) ?: return false
 
             val referenceExpression = reference as? KtNameReferenceExpression ?: reference.getChildOfType() ?: return false

@@ -5,13 +5,13 @@
 
 package org.jetbrains.kotlin.idea.inspections
 
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.descriptors.ClassConstructorDescriptor
 import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.intentions.MovePropertyToConstructorIntention
 import org.jetbrains.kotlin.idea.intentions.loopToCallChain.hasUsages
 import org.jetbrains.kotlin.idea.refactoring.isInterfaceClass
@@ -22,15 +22,15 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 
-class CanBePrimaryConstructorPropertyInspection : AbstractKotlinInspection() {
+class CanBePrimaryConstructorPropertyInspection : ResolveAbstractKotlinInspection() {
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor {
         return propertyVisitor(fun(property) {
             if (property.isLocal) return
             if (property.getter != null || property.setter != null || property.delegate != null) return
             val assigned = property.initializer as? KtReferenceExpression ?: return
 
-            val context = assigned.analyze()
+            val context = session.resolver().analyze(assigned)
             val assignedDescriptor = context.get(BindingContext.REFERENCE_TARGET, assigned) as? ValueParameterDescriptor ?: return
 
             val containingConstructor = assignedDescriptor.containingDeclaration as? ClassConstructorDescriptor ?: return

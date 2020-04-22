@@ -2099,6 +2099,11 @@ public class FirOldFrontendDiagnosticsTestWithStdlibGenerated extends AbstractFi
                 runTest("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments/kFunctions.kt");
             }
 
+            @TestMetadata("rerunStagesAfterFixationInPartialMode.kt")
+            public void testRerunStagesAfterFixationInPartialMode() throws Exception {
+                runTest("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments/rerunStagesAfterFixationInPartialMode.kt");
+            }
+
             @TestMetadata("suspendFunctions.kt")
             public void testSuspendFunctions() throws Exception {
                 runTest("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments/suspendFunctions.kt");

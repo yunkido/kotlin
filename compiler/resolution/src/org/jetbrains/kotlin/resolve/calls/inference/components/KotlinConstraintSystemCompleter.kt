@@ -142,15 +142,12 @@ class KotlinConstraintSystemCompleter(
             if (analyzeNextReadyPostponedArgument(revisedPostponedArguments, completionMode, analyze))
                 continue
 
-            // Stage 5: force fixation of remaining type variables – fix if possible or report not enough information
-            fixRemainingVariablesOrReportNotEnoughInformation(
-                completionMode,
-                topLevelAtoms,
-                topLevelType,
-                collectVariablesFromContext,
-                revisedPostponedArguments,
-                diagnosticsHolder
+            // Stage 5: fix type variables – fix if possible or report not enough information
+            val wasFixedSomeVariable = fixVariablesOrReportNotEnoughInformation(
+                completionMode, topLevelAtoms, topLevelType, collectVariablesFromContext, revisedPostponedArguments, diagnosticsHolder
             )
+            if (wasFixedSomeVariable)
+                continue
 
             // Stage 6: force analysis of remaining not analyzed postponed arguments and rerun stages if there are
             if (completionMode == ConstraintSystemCompletionMode.FULL) {
@@ -566,14 +563,16 @@ class KotlinConstraintSystemCompleter(
         return false
     }
 
-    private fun Context.fixRemainingVariablesOrReportNotEnoughInformation(
+    private fun Context.fixVariablesOrReportNotEnoughInformation(
         completionMode: ConstraintSystemCompletionMode,
         topLevelAtoms: List<ResolvedAtom>,
         topLevelType: UnwrappedType,
         collectVariablesFromContext: Boolean,
         postponedArguments: List<PostponedResolvedAtom>,
         diagnosticsHolder: KotlinDiagnosticsHolder
-    ) {
+    ): Boolean {
+        var wasFixedSomeVariable = false
+
         while (true) {
             val allTypeVariables = getOrderedAllTypeVariables(collectVariablesFromContext, topLevelAtoms)
             val variableForFixation = variableFixationFinder.findFirstVariableForFixation(
@@ -585,6 +584,7 @@ class KotlinConstraintSystemCompleter(
 
                 if (variableForFixation.hasProperConstraint) {
                     fixVariable(this, variableWithConstraints, topLevelAtoms)
+                    wasFixedSomeVariable = true
                 } else {
                     processVariableWhenNotEnoughInformation(this, variableWithConstraints, topLevelAtoms, diagnosticsHolder)
                 }
@@ -594,6 +594,8 @@ class KotlinConstraintSystemCompleter(
 
             break
         }
+
+        return wasFixedSomeVariable
     }
 
     private fun Context.findPostponedArgumentWithFixedOrPostponedInputTypes(postponedArguments: List<PostponedResolvedAtom>) =

@@ -2094,6 +2094,11 @@ public class FirOldFrontendDiagnosticsTestWithStdlibGenerated extends AbstractFi
                 KotlinTestUtils.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.fir\\.kts?$"), true);
             }
 
+            @TestMetadata("dontFixVariablesContainedInOutputType.kt")
+            public void testDontFixVariablesContainedInOutputType() throws Exception {
+                runTest("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments/dontFixVariablesContainedInOutputType.kt");
+            }
+
             @TestMetadata("kFunctions.kt")
             public void testKFunctions() throws Exception {
                 runTest("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments/kFunctions.kt");

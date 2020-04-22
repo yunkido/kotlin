@@ -120,7 +120,7 @@ class KotlinConstraintSystemCompleter(
                         argument.run { safeAs<PostponedAtomWithRevisableExpectedType>()?.revisedExpectedType ?: expectedType }
 
                     if (expectedType != null && expectedType.isBuiltinFunctionalTypeOrSubtype) {
-                        fixVariablesForParameterTypes(expectedType, postponedArguments)
+                        fixVariablesForParameterTypes(expectedType, postponedArguments, argument.outputType)
                     }
                 }
 
@@ -479,7 +479,9 @@ class KotlinConstraintSystemCompleter(
     }
 
     private fun Context.fixVariablesInsideType(
-        type: KotlinType, topLevelAtoms: List<ResolvedAtom>,
+        type: KotlinType,
+        topLevelAtoms: List<ResolvedAtom>,
+        argumentOutputType: KotlinType?,
         variablesSeen: MutableSet<TypeVariableTypeConstructor> = mutableSetOf()
     ) {
         val typeConstructor = type.constructor
@@ -487,21 +489,33 @@ class KotlinConstraintSystemCompleter(
 
         if (isProperTypeConstructorForVariable && variableFixationFinder.isTypeVariableHasProperConstraint(this, typeConstructor)) {
             val variableWithConstraints = notFixedTypeVariables.getValue(typeConstructor)
-            if (variableWithConstraints.typeVariable !in postponedTypeVariables) {
-                if (typeConstructor in notFixedTypeVariables) {
-                    fixVariable(this, variableWithConstraints, topLevelAtoms)
-                }
+            val isPostponedVariable = variableWithConstraints.typeVariable in postponedTypeVariables
+            val isContainedInOutputType = argumentOutputType?.contains { it.typeConstructor() == typeConstructor } == true
+
+            /*
+             * We don't fix variables which is contained in the postponed argument's return type,
+             * as it can lead to errors after analysis (the obtained actual return type and corresponding type variable fixed before can have contradiction).
+             *
+             * But we take into account only the current postponed argument to support resolution dependent lambdas by input-output types:
+             *      fun <K, V> A<K>.toB(f: (V) -> K, g: (K) -> V): B<K, V> = B()
+             */
+            if (!isContainedInOutputType && !isPostponedVariable && typeConstructor in notFixedTypeVariables) {
+                fixVariable(this, variableWithConstraints, topLevelAtoms)
             }
         } else if (type.arguments.isNotEmpty()) {
             for (argument in type.arguments) {
-                fixVariablesInsideType(argument.type, topLevelAtoms, variablesSeen)
+                fixVariablesInsideType(argument.type, topLevelAtoms, argumentOutputType, variablesSeen)
             }
         }
     }
 
-    private fun Context.fixVariablesForParameterTypes(type: KotlinType, topLevelAtoms: List<ResolvedAtom>) {
+    private fun Context.fixVariablesForParameterTypes(
+        type: KotlinType,
+        topLevelAtoms: List<ResolvedAtom>,
+        argumentOutputType: KotlinType?
+    ) {
         for (parameter in type.arguments.dropLast(1)) {
-            fixVariablesInsideType(parameter.type, topLevelAtoms)
+            fixVariablesInsideType(parameter.type, topLevelAtoms, argumentOutputType)
         }
     }
 

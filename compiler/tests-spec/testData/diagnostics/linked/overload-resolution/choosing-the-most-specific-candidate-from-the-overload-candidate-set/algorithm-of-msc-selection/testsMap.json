@@ -1,0 +1,26 @@
+{
+  "9": {
+    "pos": {
+      "4": [
+        {
+          "specVersion": "0.1-366",
+          "casesNumber": 4,
+          "description": "call with explicit receiver: different built-in integer types and one of them is kotlin.Int",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
+          "casesNumber": 1,
+          "description": "infix call: different built-in integer types and one of them is kotlin.Int",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
+          "casesNumber": 4,
+          "description": "call with implicit receiver: different built-in integer types and one of them is kotlin.Int",
+          "unexpectedBehaviour": false
+        }
+      ]
+    }
+  }
+}

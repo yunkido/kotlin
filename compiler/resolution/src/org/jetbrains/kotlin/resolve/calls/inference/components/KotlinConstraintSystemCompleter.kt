@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
 import org.jetbrains.kotlin.types.model.TypeConstructorMarker
 import org.jetbrains.kotlin.types.model.TypeVariableMarker
+import org.jetbrains.kotlin.types.model.safeSubstitute
 import org.jetbrains.kotlin.types.typeUtil.asTypeProjection
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
@@ -29,7 +30,8 @@ class KotlinConstraintSystemCompleter(
 ) {
     enum class ConstraintSystemCompletionMode {
         FULL,
-        PARTIAL
+        PARTIAL,
+        UNTIL_FIRST_LAMBDA
     }
 
     interface Context : VariableFixationFinder.Context, ResultTypeResolver.Context {
@@ -95,6 +97,7 @@ class KotlinConstraintSystemCompleter(
         analyze: (PostponedResolvedAtom) -> Unit
     ) {
         while (true) {
+            if (completionMode == ConstraintSystemCompletionMode.UNTIL_FIRST_LAMBDA && hasLambdaToAnalyze(c, topLevelAtoms)) return
             if (analyzePostponeArgumentIfPossible(c, topLevelAtoms, analyze)) continue
 
             val allTypeVariables = getOrderedAllTypeVariables(c, collectVariablesFromContext, topLevelAtoms)
@@ -286,11 +289,42 @@ class KotlinConstraintSystemCompleter(
         return newAtomCreator(returnVariable, expectedType)
     }
 
+    fun prepareLambdaAtomForFactoryPattern(
+        atom: ResolvedLambdaAtom,
+        candidate: KotlinResolutionCandidate,
+        diagnosticsHolder: KotlinDiagnosticsHolder,
+    ): ResolvedLambdaAtom {
+        val returnVariable = TypeVariableForLambdaReturnType(atom.atom, candidate.callComponents.builtIns, "_R")
+        val csBuilder = candidate.csBuilder
+        csBuilder.registerVariable(returnVariable)
+        val functionalType: KotlinType = csBuilder.buildCurrentSubstitutor().safeSubstitute(candidate.getSystem().asConstraintSystemCompleterContext(), atom.expectedType!!) as KotlinType
+        val expectedType = KotlinTypeFactory.simpleType(
+            functionalType.annotations,
+            functionalType.constructor,
+            functionalType.arguments.dropLast(1) + returnVariable.defaultType.asTypeProjection(),
+            functionalType.isMarkedNullable
+        )
+        csBuilder.addSubtypeConstraint(
+            expectedType,
+            functionalType,
+            ArgumentConstraintPosition(atom.atom)
+        )
+        return atom.transformToResolvedLambda(csBuilder, diagnosticsHolder, expectedType, returnVariable)
+    }
+
     // true if we do analyze
     private fun analyzePostponeArgumentIfPossible(
         c: Context,
         topLevelAtoms: List<ResolvedAtom>,
         analyze: (PostponedResolvedAtom) -> Unit
+    ): Boolean {
+        return forEachReadyPostponedAtom(c, topLevelAtoms, analyze)
+    }
+
+    private inline fun forEachReadyPostponedAtom(
+        c: Context,
+        topLevelAtoms: List<ResolvedAtom>,
+        analyze: (PostponedResolvedAtom) -> Unit = {}
     ): Boolean {
         for (argument in getOrderedNotAnalyzedPostponedArguments(topLevelAtoms)) {
             ProgressIndicatorAndCompilationCanceledStatus.checkCanceled()
@@ -300,6 +334,13 @@ class KotlinConstraintSystemCompleter(
             }
         }
         return false
+    }
+
+    private fun hasLambdaToAnalyze(
+        c: Context,
+        topLevelAtoms: List<ResolvedAtom>
+    ): Boolean {
+        return forEachReadyPostponedAtom(c, topLevelAtoms)
     }
 
     private fun getOrderedAllTypeVariables(

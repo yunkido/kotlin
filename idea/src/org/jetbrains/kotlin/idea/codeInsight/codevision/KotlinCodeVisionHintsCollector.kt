@@ -37,6 +37,11 @@ import java.awt.event.MouseEvent
 import java.text.MessageFormat
 import java.util.*
 
+private const val FUS_GROUP_ID = "kotlin.code.vision"
+private const val USAGES_CLICKED_EVENT_ID = "usages.clicked"
+private const val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
+private const val SETTING_CLICKED_EVENT_ID = "setting.clicked"
+
 @Suppress("UnstableApiUsage")
 class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVisionSettings) : FactoryInlayHintsCollector(editor) {
 
@@ -148,11 +153,8 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private class Usages(usagesNum: Int) : InlResult {
-        private val FUS_GROUP_ID = "kotlin.code.vision"
-        private val USAGES_CLICKED_EVENT_ID = "usages.clicked"
-
-        val format = "{0,choice, 0#no usages|1#1 usage|2#{0,number} usages}"
-        val usagesHint = StringUtil.capitalizeWords(MessageFormat.format(format, usagesNum), true)
+        private val format = "{0,choice, 0#no usages|1#1 usage|2#{0,number} usages}"
+        private val usagesHint = StringUtil.capitalizeWords(MessageFormat.format(format, usagesNum), true)
 
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, USAGES_CLICKED_EVENT_ID)
@@ -165,8 +167,6 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private class FunctionOverrides(overridesNum: Int) : InlResult {
-        private val FUS_GROUP_ID = "kotlin.code.vision" // todo reuse
-        private val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
         private val format = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
         private val usagesHint: String = MessageFormat.format(format, overridesNum)
 
@@ -183,9 +183,6 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private class ClassInheritors(inheritorsNum: Int) : InlResult {
-        private val FUS_GROUP_ID = "kotlin.code.vision" // todo reuse
-        private val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
-
         private val format = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
         private val usagesHint: String = MessageFormat.format(format, inheritorsNum)
 
@@ -202,9 +199,6 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private class SettingsHint : InlResult {
-        private val FUS_GROUP_ID = "kotlin.code.vision" // todo reuse
-        private val SETTING_CLICKED_EVENT_ID = "setting.clicked"
-
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             val project = element.project
             FUCounterUsageLogger.getInstance().logEvent(project, FUS_GROUP_ID, SETTING_CLICKED_EVENT_ID)

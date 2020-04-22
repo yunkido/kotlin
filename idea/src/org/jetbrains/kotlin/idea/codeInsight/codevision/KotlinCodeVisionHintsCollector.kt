@@ -40,12 +40,6 @@ import java.util.*
 @Suppress("UnstableApiUsage")
 class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVisionSettings) : FactoryInlayHintsCollector(editor) {
 
-    private val FUS_GROUP_ID = "kotlin.code.vision"
-    private val USAGES_CLICKED_EVENT_ID = "usages.clicked"
-    private val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
-    private val SETTING_CLICKED_EVENT_ID = "setting.clicked"
-
-
     override fun collect(element: PsiElement, editor: Editor, sink: InlayHintsSink): Boolean {
         if (element !is KtProperty && element !is KtNamedFunction && element !is KtClass && element !is KtConstructor<*>) {
             return true
@@ -53,58 +47,25 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
 
         val hints: MutableList<InlResult> = SmartList()
 
-        if (settings.showUsages) {
+        if (settings.showUsages) { // todo: consider too-many-usages, in-background-search, read-lock
             val usagesNum = ReferencesSearch.search(element).count()
-            val format = "{0,choice, 0#no usages|1#1 usage|2#{0,number} usages}"
-            val usagesHint = StringUtil.capitalizeWords(MessageFormat.format(format, usagesNum), true)
-            hints.add(object : InlResult {
-                override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
-                    FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, USAGES_CLICKED_EVENT_ID)
-                    GotoDeclarationAction.startFindUsages(editor, editor.project!!, element)
-                }
-
-                override fun getRegularText(): String {
-                    return usagesHint
-                }
-            })
+            if (usagesNum > 0)
+                hints += Usages(usagesNum)
         }
 
         if (settings.showImplementations) {
             if (element is KtFunction) {
-                //val lightClassMethod = LightClassUtil.getLightClassMethod(element)
                 LightClassUtil.getLightClassMethod(element)?.let { it ->
                     val overridingNum = OverridingMethodsSearch.search(it, true).count()
-                    hints.add(object : InlResult {
-                        override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
-                            val data = FeatureUsageData().addData("location", "method")
-                            FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
-                            val navigationHandler = MarkerType.OVERRIDDEN_METHOD.navigationHandler
-                            navigationHandler.navigate(event, (element as PsiMethod).nameIdentifier)
-                        }
-
-                        override fun getRegularText(): String {
-                            val prop = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
-                            return MessageFormat.format(prop, overridingNum)
-                        }
-                    })
+                    if (overridingNum > 0)
+                        hints += FunctionOverrides(overridingNum)
                 }
             } else if (element is KtClass) {
                 val lightClass = element.toLightClass()
                 lightClass?.let {
                     val inheritorsNum = DirectClassInheritorsSearch.search(it, element.useScope, true).count()
-                    hints.add(object : InlResult {
-                        override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
-                            val data = FeatureUsageData().addData("location", "class")
-                            FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
-                            val navigationHandler = MarkerType.SUBCLASSED_CLASS.navigationHandler
-                            navigationHandler.navigate(event, (element as PsiClass).nameIdentifier)
-                        }
-
-                        override fun getRegularText(): String {
-                            val prop = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
-                            return MessageFormat.format(prop, inheritorsNum)
-                        }
-                    })
+                    if (inheritorsNum > 0)
+                        hints += ClassInheritors(inheritorsNum)
                 }
             }
         }
@@ -177,29 +138,81 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private fun settings(factory: PresentationFactory, element: PsiElement, editor: Editor): InlayPresentation {
-        return createPresentation(factory, element, editor, object :
-            InlResult {
-
-            override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
-                val project = element.project
-                FUCounterUsageLogger.getInstance()
-                    .logEvent(project, FUS_GROUP_ID, SETTING_CLICKED_EVENT_ID)
-                InlayHintsConfigurable.showSettingsDialogForLanguage(
-                    project,
-                    element.language
-                )
-
-            }
-
-            override fun getRegularText(): String {
-                return "Settings..."
-            }
-        })
+        return createPresentation(factory, element, editor, SettingsHint())
     }
 
     private interface InlResult {
         fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?)
 
         fun getRegularText(): String
+    }
+
+    private class Usages(usagesNum: Int) : InlResult {
+        private val FUS_GROUP_ID = "kotlin.code.vision"
+        private val USAGES_CLICKED_EVENT_ID = "usages.clicked"
+
+        val format = "{0,choice, 0#no usages|1#1 usage|2#{0,number} usages}"
+        val usagesHint = StringUtil.capitalizeWords(MessageFormat.format(format, usagesNum), true)
+
+        override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
+            FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, USAGES_CLICKED_EVENT_ID)
+            GotoDeclarationAction.startFindUsages(editor, editor.project!!, element)
+        }
+
+        override fun getRegularText(): String {
+            return usagesHint
+        }
+    }
+
+    private class FunctionOverrides(overridesNum: Int) : InlResult {
+        private val FUS_GROUP_ID = "kotlin.code.vision" // todo reuse
+        private val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
+        private val format = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
+        private val usagesHint: String = MessageFormat.format(format, overridesNum)
+
+        override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
+            val data = FeatureUsageData().addData("location", "method")
+            FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
+            val navigationHandler = MarkerType.OVERRIDDEN_METHOD.navigationHandler
+            navigationHandler.navigate(event, (element as PsiMethod).nameIdentifier)
+        }
+
+        override fun getRegularText(): String {
+            return usagesHint
+        }
+    }
+
+    private class ClassInheritors(inheritorsNum: Int) : InlResult {
+        private val FUS_GROUP_ID = "kotlin.code.vision" // todo reuse
+        private val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
+
+        private val format = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
+        private val usagesHint: String = MessageFormat.format(format, inheritorsNum)
+
+        override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
+            val data = FeatureUsageData().addData("location", "class")
+            FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
+            val navigationHandler = MarkerType.SUBCLASSED_CLASS.navigationHandler
+            navigationHandler.navigate(event, (element as PsiClass).nameIdentifier)
+        }
+
+        override fun getRegularText(): String {
+            return usagesHint // todo property can become a part of interface
+        }
+    }
+
+    private class SettingsHint : InlResult {
+        private val FUS_GROUP_ID = "kotlin.code.vision" // todo reuse
+        private val SETTING_CLICKED_EVENT_ID = "setting.clicked"
+
+        override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
+            val project = element.project
+            FUCounterUsageLogger.getInstance().logEvent(project, FUS_GROUP_ID, SETTING_CLICKED_EVENT_ID)
+            InlayHintsConfigurable.showSettingsDialogForLanguage(project, element.language)
+        }
+
+        override fun getRegularText(): String {
+            return "Settings..."
+        }
     }
 }

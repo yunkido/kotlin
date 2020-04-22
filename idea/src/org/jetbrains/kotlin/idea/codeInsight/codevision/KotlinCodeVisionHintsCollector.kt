@@ -37,13 +37,19 @@ import java.awt.event.MouseEvent
 import java.text.MessageFormat
 import java.util.*
 
-private const val FUS_GROUP_ID = "kotlin.code.vision"
-private const val USAGES_CLICKED_EVENT_ID = "usages.clicked"
-private const val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
-private const val SETTING_CLICKED_EVENT_ID = "setting.clicked"
 
 @Suppress("UnstableApiUsage")
 class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVisionSettings) : FactoryInlayHintsCollector(editor) {
+
+    companion object {
+        const val FUS_GROUP_ID = "kotlin.code.vision"
+        const val USAGES_CLICKED_EVENT_ID = "usages.clicked"
+        const val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
+        const val SETTING_CLICKED_EVENT_ID = "setting.clicked"
+
+        const val IMPLEMENTATIONS_HINT_FORMAT = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
+        const val USAGES_HINT_FORMAT = "{0,choice, 0#no usages|1#1 usage|2#{0,number} usages}"
+    }
 
     override fun collect(element: PsiElement, editor: Editor, sink: InlayHintsSink): Boolean {
         if (element !is KtProperty && element !is KtNamedFunction && element !is KtClass && element !is KtConstructor<*>) {
@@ -153,8 +159,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private class Usages(usagesNum: Int) : InlResult {
-        private val format = "{0,choice, 0#no usages|1#1 usage|2#{0,number} usages}"
-        private val usagesHint = StringUtil.capitalizeWords(MessageFormat.format(format, usagesNum), true)
+        private val usagesHint = StringUtil.capitalizeWords(MessageFormat.format(USAGES_HINT_FORMAT, usagesNum), true)
 
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, USAGES_CLICKED_EVENT_ID)
@@ -167,8 +172,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private class FunctionOverrides(overridesNum: Int) : InlResult {
-        private val format = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
-        private val usagesHint: String = MessageFormat.format(format, overridesNum)
+        private val usagesHint: String = MessageFormat.format(IMPLEMENTATIONS_HINT_FORMAT, overridesNum)
 
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             val data = FeatureUsageData().addData("location", "method")
@@ -183,8 +187,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private class ClassInheritors(inheritorsNum: Int) : InlResult {
-        private val format = "{0, choice, 1#1 Implementation|2#{0,number} Implementations}"
-        private val usagesHint: String = MessageFormat.format(format, inheritorsNum)
+        private val usagesHint: String = MessageFormat.format(IMPLEMENTATIONS_HINT_FORMAT, inheritorsNum)
 
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             val data = FeatureUsageData().addData("location", "class")

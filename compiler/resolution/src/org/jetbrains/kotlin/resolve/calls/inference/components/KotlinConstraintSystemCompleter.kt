@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.types.model.TypeConstructorMarker
 import org.jetbrains.kotlin.types.model.TypeVariableMarker
 import org.jetbrains.kotlin.types.typeUtil.asTypeProjection
 import org.jetbrains.kotlin.types.typeUtil.builtIns
+import org.jetbrains.kotlin.types.typeUtil.supertypes
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 import kotlin.collections.LinkedHashSet
@@ -197,6 +198,13 @@ class KotlinConstraintSystemCompleter(
         )
     }
 
+    private fun extractFunctionalType(functionalTypeOrSubtype: KotlinType): KotlinType? {
+        if (functionalTypeOrSubtype.isBuiltinFunctionalType)
+            return functionalTypeOrSubtype
+
+        return functionalTypeOrSubtype.supertypes().find { it.isBuiltinFunctionalType }
+    }
+
     private fun Context.findFunctionalTypesInConstraints(
         variable: VariableWithConstraints,
         typeVariablesSeen: Set<TypeVariableTypeConstructor> = setOf()
@@ -209,7 +217,8 @@ class KotlinConstraintSystemCompleter(
             val type = constraint.type as? KotlinType ?: return@mapNotNull null
 
             when {
-                type.isBuiltinFunctionalTypeOrSubtype -> listOf(TypeWithKind(type, constraint.kind))
+                type.isBuiltinFunctionalTypeOrSubtype ->
+                    listOf(TypeWithKind(extractFunctionalType(type) ?: return@mapNotNull null, constraint.kind))
                 type.constructor in notFixedTypeVariables -> {
                     findFunctionalTypesInConstraints(
                         notFixedTypeVariables.getValue(constraint.type.constructor),

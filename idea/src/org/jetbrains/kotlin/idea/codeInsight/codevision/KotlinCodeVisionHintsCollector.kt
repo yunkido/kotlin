@@ -52,9 +52,8 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     override fun collect(element: PsiElement, editor: Editor, sink: InlayHintsSink): Boolean {
-        if (element !is KtProperty && element !is KtNamedFunction && element !is KtClass && element !is KtConstructor<*>) {
+        if (!isElementOfInterest(element))
             return true
-        }
 
         val hints: MutableList<InlResult> = SmartList()
 
@@ -64,7 +63,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
                 hints += Usages(usagesNum)
         }
 
-        if (settings.showImplementations) {
+        if (settings.showImplementations) { // todo: what about property overriding?
             if (element is KtFunction) {
                 LightClassUtil.getLightClassMethod(element)?.let { it ->
                     val overridingNum = OverridingMethodsSearch.search(it, true).count()
@@ -81,40 +80,46 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
             }
         }
 
-        if (hints.isNotEmpty()) {
+        if (hints.isNotEmpty())
+            prepareBlockElements(element, editor, hints, sink)
 
-            val offset = element.textRange.startOffset
-            val line: Int = editor.document.getLineNumber(offset)
-            val lineStart: Int = editor.document.getLineStartOffset(line)
-            val indent = offset - lineStart
-
-            val presentations = arrayOfNulls<InlayPresentation>(hints.size * 2 + 1)
-            presentations[0] = factory.text(StringUtil.repeat(" ", indent))
-            var o = 1
-            for (i in hints.indices) {
-                val hint: InlResult = hints[i]
-                if (i != 0) {
-                    presentations[o++] = factory.text(" ")
-                }
-                presentations[o++] = createPresentation(factory, element, editor, hint)
-            }
-            presentations[o] = factory.text("          ") // placeholder for "Settings..."
-
-
-            val seq = factory.seq(*presentations.requireNoNulls())
-            val withAppearingSettings = factory.changeOnHover(seq, {
-                val trimmedSpace: Array<InlayPresentation> =
-                    Arrays.copyOf(presentations, presentations.size - 1)
-                val spaceAndSettings =
-                    arrayOf(factory.text("  "), settings(factory, element, editor))
-                val withSettings =
-                    ArrayUtil.mergeArrays(trimmedSpace, spaceAndSettings)
-                factory.seq(*withSettings)
-            }) { e: MouseEvent? -> true }
-            sink.addBlockElement(lineStart, true, true, 0, withAppearingSettings)
-        }
         return true
     }
+
+    private fun prepareBlockElements(element: PsiElement, editor: Editor, hints: MutableList<InlResult>, sink: InlayHintsSink) {
+        val offset = element.textRange.startOffset
+        val line: Int = editor.document.getLineNumber(offset)
+        val lineStart: Int = editor.document.getLineStartOffset(line)
+        val indent = offset - lineStart
+
+        val presentations = arrayOfNulls<InlayPresentation>(hints.size * 2 + 1)
+        presentations[0] = factory.text(StringUtil.repeat(" ", indent))
+        var o = 1
+        for (i in hints.indices) {
+            val hint: InlResult = hints[i]
+            if (i != 0) {
+                presentations[o++] = factory.text(" ")
+            }
+            presentations[o++] = createPresentation(factory, element, editor, hint)
+        }
+        presentations[o] = factory.text("          ") // placeholder for "Settings..."
+
+
+        val seq = factory.seq(*presentations.requireNoNulls())
+        val withAppearingSettings = factory.changeOnHover(seq, {
+            val trimmedSpace: Array<InlayPresentation> =
+                Arrays.copyOf(presentations, presentations.size - 1)
+            val spaceAndSettings =
+                arrayOf(factory.text("  "), settings(factory, element, editor))
+            val withSettings =
+                ArrayUtil.mergeArrays(trimmedSpace, spaceAndSettings)
+            factory.seq(*withSettings)
+        }) { e: MouseEvent? -> true }
+
+        sink.addBlockElement(lineStart, true, true, 0, withAppearingSettings)
+    }
+
+    private fun isElementOfInterest(element: PsiElement): Boolean = element is KtClass || element is KtFunction || element is KtProperty
 
     private fun createPresentation(
         factory: PresentationFactory,

@@ -122,7 +122,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
         editor: Editor,
         result: InlResult
     ): InlayPresentation {
-        val text = factory.smallText(result.getRegularText())
+        val text = factory.smallText(result.regularText)
         return factory.changeOnHover(text, {
             val onClick = factory.onClick(
                 text,
@@ -153,26 +153,22 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     }
 
     private interface InlResult {
-        fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?)
+        val regularText: String
 
-        fun getRegularText(): String
+        fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?)
     }
 
     private class Usages(usagesNum: Int) : InlResult {
-        private val usagesHint = StringUtil.capitalizeWords(MessageFormat.format(USAGES_HINT_FORMAT, usagesNum), true)
+        override val regularText: String = StringUtil.capitalizeWords(MessageFormat.format(USAGES_HINT_FORMAT, usagesNum), true)
 
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, USAGES_CLICKED_EVENT_ID)
             GotoDeclarationAction.startFindUsages(editor, editor.project!!, element)
         }
-
-        override fun getRegularText(): String {
-            return usagesHint
-        }
     }
 
     private class FunctionOverrides(overridesNum: Int) : InlResult {
-        private val usagesHint: String = MessageFormat.format(IMPLEMENTATIONS_HINT_FORMAT, overridesNum)
+        override val regularText: String = MessageFormat.format(IMPLEMENTATIONS_HINT_FORMAT, overridesNum)
 
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             val data = FeatureUsageData().addData("location", "method")
@@ -180,14 +176,10 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
             val navigationHandler = MarkerType.OVERRIDDEN_METHOD.navigationHandler
             navigationHandler.navigate(event, (element as PsiMethod).nameIdentifier)
         }
-
-        override fun getRegularText(): String {
-            return usagesHint
-        }
     }
 
     private class ClassInheritors(inheritorsNum: Int) : InlResult {
-        private val usagesHint: String = MessageFormat.format(IMPLEMENTATIONS_HINT_FORMAT, inheritorsNum)
+        override val regularText: String = MessageFormat.format(IMPLEMENTATIONS_HINT_FORMAT, inheritorsNum)
 
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             val data = FeatureUsageData().addData("location", "class")
@@ -195,21 +187,15 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
             val navigationHandler = MarkerType.SUBCLASSED_CLASS.navigationHandler
             navigationHandler.navigate(event, (element as PsiClass).nameIdentifier)
         }
-
-        override fun getRegularText(): String {
-            return usagesHint // todo property can become a part of interface
-        }
     }
 
     private class SettingsHint : InlResult {
+        override val regularText: String = "Settings..."
+
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             val project = element.project
             FUCounterUsageLogger.getInstance().logEvent(project, FUS_GROUP_ID, SETTING_CLICKED_EVENT_ID)
             InlayHintsConfigurable.showSettingsDialogForLanguage(project, element.language)
-        }
-
-        override fun getRegularText(): String {
-            return "Settings..."
         }
     }
 }

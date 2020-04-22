@@ -5,12 +5,14 @@
 
 package org.jetbrains.kotlin.idea.inspections.coroutines
 
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.codeInspection.ui.MultipleCheckboxOptionsPanel
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.idea.KotlinBundle
 import org.jetbrains.kotlin.idea.imports.importableFqName
 import org.jetbrains.kotlin.idea.inspections.AbstractResultUnusedChecker
+import org.jetbrains.kotlin.idea.inspections.resolver
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.callExpressionVisitor
@@ -32,9 +34,9 @@ class DeferredResultUnusedInspection(@JvmField var standardOnly: Boolean = false
         }
     }
 ) {
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor =
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor =
         callExpressionVisitor(fun(expression) {
-            if (!check(expression)) return
+            if (!check(expression, session.resolver())) return
             holder.registerProblem(expression.calleeExpression ?: expression, KotlinBundle.message("deferred.result.is.never.used"))
         })
 

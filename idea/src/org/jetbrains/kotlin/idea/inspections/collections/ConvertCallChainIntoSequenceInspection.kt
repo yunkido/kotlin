@@ -5,10 +5,7 @@
 
 package org.jetbrains.kotlin.idea.inspections.collections
 
-import com.intellij.codeInspection.LocalQuickFix
-import com.intellij.codeInspection.ProblemDescriptor
-import com.intellij.codeInspection.ProblemHighlightType
-import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.codeInspection.*
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.project.Project
@@ -18,23 +15,20 @@ import com.intellij.ui.EditorTextField
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.core.replaced
-import org.jetbrains.kotlin.idea.inspections.AbstractKotlinInspection
+import org.jetbrains.kotlin.idea.inspections.KtElementAnalyzer
+import org.jetbrains.kotlin.idea.inspections.ResolveAbstractKotlinInspection
+import org.jetbrains.kotlin.idea.inspections.resolver
 import org.jetbrains.kotlin.idea.intentions.callExpression
 import org.jetbrains.kotlin.idea.util.CommentSaver
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.*
 import org.jetbrains.kotlin.resolve.BindingContext
-import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
-import org.jetbrains.kotlin.resolve.calls.resolvedCallUtil.getImplicitReceiverValue
-import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
-import org.jetbrains.kotlin.resolve.scopes.receivers.ImplicitReceiver
 import java.awt.BorderLayout
 import javax.swing.JPanel
 
-class ConvertCallChainIntoSequenceInspection : AbstractKotlinInspection() {
+class ConvertCallChainIntoSequenceInspection : ResolveAbstractKotlinInspection() {
 
     private val defaultCallChainLength = 5
 
@@ -46,9 +40,9 @@ class ConvertCallChainIntoSequenceInspection : AbstractKotlinInspection() {
             callChainLength = value.toIntOrNull() ?: defaultCallChainLength
         }
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean) =
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession) =
         qualifiedExpressionVisitor(fun(expression) {
-            val (qualified, firstCall, callChainLength) = expression.findCallChain() ?: return
+            val (qualified, firstCall, callChainLength) = expression.findCallChain(session.resolver()) ?: return
             val rangeInElement = firstCall.calleeExpression?.textRange?.shiftRight(-qualified.startOffset) ?: return
             val highlightType = if (callChainLength >= this.callChainLength)
                 ProblemHighlightType.GENERIC_ERROR_OR_WARNING
@@ -61,7 +55,7 @@ class ConvertCallChainIntoSequenceInspection : AbstractKotlinInspection() {
                 isOnTheFly,
                 highlightType,
                 rangeInElement,
-                ConvertCallChainIntoSequenceFix()
+                ConvertCallChainIntoSequenceFix(session.resolver())
             )
         })
 
@@ -76,20 +70,21 @@ class ConvertCallChainIntoSequenceInspection : AbstractKotlinInspection() {
                     owner.callChainLengthText = regexField.text
                 }
             })
-            val labeledComponent = LabeledComponent.create(regexField, KotlinBundle.message("call.chain.length.to.transform"), BorderLayout.WEST)
+            val labeledComponent =
+                LabeledComponent.create(regexField, KotlinBundle.message("call.chain.length.to.transform"), BorderLayout.WEST)
             add(labeledComponent, BorderLayout.NORTH)
         }
     }
 }
 
-private class ConvertCallChainIntoSequenceFix : LocalQuickFix {
+private class ConvertCallChainIntoSequenceFix(val resolver: KtElementAnalyzer) : LocalQuickFix {
     override fun getName() = KotlinBundle.message("convert.call.chain.into.sequence.fix.text")
 
     override fun getFamilyName() = name
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
         val expression = descriptor.psiElement as? KtQualifiedExpression ?: return
-        val context = expression.analyze(BodyResolveMode.PARTIAL)
+        val context = resolver.analyze(expression)
         val calls = expression.collectCallExpression(context).reversed()
         val firstCall = calls.firstOrNull() ?: return
         val lastCall = calls.lastOrNull() ?: return
@@ -140,10 +135,10 @@ private data class CallChain(
     val callChainLength: Int
 )
 
-private fun KtQualifiedExpression.findCallChain(): CallChain? {
+private fun KtQualifiedExpression.findCallChain(resolver: KtElementAnalyzer): CallChain? {
     if (parent is KtQualifiedExpression) return null
 
-    val context = analyze(BodyResolveMode.PARTIAL)
+    val context = resolver.analyze(this)
     val calls = collectCallExpression(context)
     if (calls.isEmpty()) return null
 

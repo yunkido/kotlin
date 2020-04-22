@@ -6,8 +6,6 @@
 package org.jetbrains.kotlin.idea.inspections
 
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.resolve.bindingContextUtil.isUsedAsExpression
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
@@ -17,8 +15,8 @@ import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 abstract class AbstractResultUnusedChecker(
     private val expressionChecker: (KtExpression, AbstractResultUnusedChecker) -> Boolean,
     private val callChecker: (ResolvedCall<*>, AbstractResultUnusedChecker) -> Boolean
-) : AbstractKotlinInspection() {
-    protected fun check(expression: KtExpression): Boolean {
+) : ResolveAbstractKotlinInspection() {
+    protected fun check(expression: KtExpression, resolver: KtElementAnalyzer): Boolean {
         // Check whatever possible by PSI
         if (!expressionChecker(expression, this)) return false
         var current: PsiElement? = expression
@@ -32,7 +30,7 @@ abstract class AbstractResultUnusedChecker(
             parent = parent.parent
         }
         // Then check by call
-        val context = expression.analyze(BodyResolveMode.PARTIAL_WITH_CFA)
+        val context = resolver.analyze(expression, BodyResolveMode.PARTIAL_WITH_CFA)
         if (expression.isUsedAsExpression(context)) return false
         val resolvedCall = expression.getResolvedCall(context) ?: return false
         return callChecker(resolvedCall, this)

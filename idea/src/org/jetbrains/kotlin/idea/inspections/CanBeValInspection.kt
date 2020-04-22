@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.idea.inspections
 
 import com.intellij.codeInspection.IntentionWrapper
+import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
@@ -31,23 +32,25 @@ import org.jetbrains.kotlin.cfg.pseudocode.instructions.eval.WriteValueInstructi
 import org.jetbrains.kotlin.cfg.pseudocode.instructions.special.LocalFunctionDeclarationInstruction
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.quickfix.ChangeVariableMutabilityFix
 import org.jetbrains.kotlin.idea.references.KtSimpleNameReference
 import org.jetbrains.kotlin.idea.references.readWriteAccess
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.resolve.BindingContext
-import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 import java.util.*
 
-class CanBeValInspection : AbstractKotlinInspection() {
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+class CanBeValInspection : ResolveAbstractKotlinInspection() {
+    override fun buildVisitor(
+        holder: ProblemsHolder,
+        isOnTheFly: Boolean,
+        session: LocalInspectionToolSession
+    ): PsiElementVisitor {
         return object : KtVisitorVoid() {
             private val pseudocodeCache = HashMap<KtDeclaration, Pseudocode>()
             override fun visitDeclaration(declaration: KtDeclaration) {
                 super.visitDeclaration(declaration)
-                if (declaration is KtValVarKeywordOwner && canBeVal(declaration, pseudocodeCache, ignoreNotUsedVals = true)) {
+                if (declaration is KtValVarKeywordOwner && canBeVal(declaration, pseudocodeCache, true, session.resolver())) {
                     reportCanBeVal(declaration)
                 }
             }
@@ -71,7 +74,8 @@ class CanBeValInspection : AbstractKotlinInspection() {
         fun canBeVal(
             declaration: KtDeclaration,
             pseudocodeCache: HashMap<KtDeclaration, Pseudocode> = HashMap(),
-            ignoreNotUsedVals: Boolean
+            ignoreNotUsedVals: Boolean,
+            resolver: KtElementAnalyzer
         ): Boolean {
             when (declaration) {
                 is KtProperty -> {
@@ -81,7 +85,8 @@ class CanBeValInspection : AbstractKotlinInspection() {
                             declaration.hasInitializer() || declaration.hasDelegateExpression(),
                             listOf(declaration),
                             ignoreNotUsedVals,
-                            pseudocodeCache
+                            pseudocodeCache,
+                            resolver
                         )
                     ) {
                         return true
@@ -90,7 +95,16 @@ class CanBeValInspection : AbstractKotlinInspection() {
 
                 is KtDestructuringDeclaration -> {
                     val entries = declaration.entries
-                    if (declaration.isVar && entries.all { canBeVal(it, true, entries, ignoreNotUsedVals, pseudocodeCache) }) {
+                    if (declaration.isVar && entries.all {
+                            canBeVal(
+                                it,
+                                true,
+                                entries,
+                                ignoreNotUsedVals,
+                                pseudocodeCache,
+                                resolver
+                            )
+                        }) {
                         return true
                     }
                 }
@@ -98,12 +112,13 @@ class CanBeValInspection : AbstractKotlinInspection() {
             return false
         }
 
-        private fun canBeVal(
+        fun canBeVal(
             declaration: KtVariableDeclaration,
             hasInitializerOrDelegate: Boolean,
             allDeclarations: Collection<KtVariableDeclaration>,
             ignoreNotUsedVals: Boolean,
-            pseudocodeCache: MutableMap<KtDeclaration, Pseudocode>
+            pseudocodeCache: MutableMap<KtDeclaration, Pseudocode>,
+            elementAnalyzer: KtElementAnalyzer
         ): Boolean {
             if (ignoreNotUsedVals && allDeclarations.all { ReferencesSearch.search(it, it.useScope).none() }) {
                 // do not report for unused var's (otherwise we'll get it highlighted immediately after typing the declaration
@@ -116,7 +131,7 @@ class CanBeValInspection : AbstractKotlinInspection() {
                 }
                 !hasWriteUsages
             } else {
-                val bindingContext = declaration.analyze(BodyResolveMode.FULL)
+                val bindingContext = elementAnalyzer.analyzeFull(declaration)
                 val pseudocode = pseudocode(declaration, bindingContext, pseudocodeCache) ?: return false
                 val descriptor = bindingContext[BindingContext.DECLARATION_TO_DESCRIPTOR, declaration] ?: return false
 

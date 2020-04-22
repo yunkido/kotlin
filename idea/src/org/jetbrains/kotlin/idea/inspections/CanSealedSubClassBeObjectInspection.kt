@@ -21,7 +21,6 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.asJava.classes.KtLightClassImpl
 import org.jetbrains.kotlin.idea.KotlinBundle
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToDescriptorIfAny
 import org.jetbrains.kotlin.idea.core.getModalityFromDescriptor
 import org.jetbrains.kotlin.idea.quickfix.sealedSubClassToObject.ConvertSealedSubClassToObjectFix
 import org.jetbrains.kotlin.idea.quickfix.sealedSubClassToObject.GenerateIdentityEqualsFix
@@ -37,7 +36,7 @@ import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassNotAny
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
-class CanSealedSubClassBeObjectInspection : AbstractKotlinInspection() {
+class CanSealedSubClassBeObjectInspection : ResolveAbstractKotlinInspection() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor {
         return object : KtVisitorVoid() {
             override fun visitClass(klass: KtClass) {
@@ -51,7 +50,7 @@ class CanSealedSubClassBeObjectInspection : AbstractKotlinInspection() {
                     .thatHasNoInnerClasses()
                     .thatHasNoCompanionObjects()
                     .thatHasNoStateOrEquals()
-                if (candidates.isEmpty() || !klass.hasNoStateOrEquals() || !klass.baseClassHasNoStateOrEquals()) return
+                if (candidates.isEmpty() || !klass.hasNoStateOrEquals() || !klass.baseClassHasNoStateOrEquals(session.resolver())) return
 
                 candidates.forEach { reportPossibleObject(it) }
             }
@@ -100,17 +99,17 @@ class CanSealedSubClassBeObjectInspection : AbstractKotlinInspection() {
         return filter { it.hasNoStateOrEquals() }
     }
 
-    private tailrec fun KtClass.baseClassHasNoStateOrEquals(): Boolean {
-        val descriptor = resolveToDescriptorIfAny() ?: return false
+    private tailrec fun KtClass.baseClassHasNoStateOrEquals(resolver: KtElementAnalyzer): Boolean {
+        val descriptor = resolver.resolveToClassDescriptor(this) ?: return false
         val superDescriptor = descriptor.getSuperClassNotAny() ?: return true // No super class -- no state
         val superClass = DescriptorToSourceUtils.descriptorToDeclaration(superDescriptor) as? KtClass ?: return false
         if (!superClass.hasNoStateOrEquals()) return false
-        return superClass.baseClassHasNoStateOrEquals()
+        return superClass.baseClassHasNoStateOrEquals(resolver)
     }
 
     private fun KtClass.hasNoStateOrEquals(): Boolean {
         if (primaryConstructor?.valueParameters?.isNotEmpty() == true) return false
-        val body = getBody()
+        val body = body
         return body == null || run {
             val declarations = body.declarations
             declarations.asSequence().filterIsInstance<KtProperty>().none { property ->
@@ -132,7 +131,7 @@ class CanSealedSubClassBeObjectInspection : AbstractKotlinInspection() {
     }
 
     private fun KtClass.hasNoInnerClass(): Boolean {
-        val internalClasses = getBody()
+        val internalClasses = body
             ?.declarations
             ?.filterIsInstance<KtClass>() ?: return true
 

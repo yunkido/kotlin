@@ -237,7 +237,7 @@ class QuickFixRegistrar : QuickFixContributor {
 
         UNUSED_DESTRUCTURED_PARAMETER_ENTRY.registerFactory(RenameToUnderscoreFix.Factory)
 
-        SENSELESS_COMPARISON.registerFactory(SimplifyComparisonFix)
+        SENSELESS_COMPARISON.registerFactory(SimplifyComparisonFix.Factory)
 
         UNNECESSARY_SAFE_CALL.registerFactory(ReplaceWithDotCallFix)
         UNSAFE_CALL.registerFactory(ReplaceWithSafeCallFix)

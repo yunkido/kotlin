@@ -8,6 +8,7 @@
  * SPEC VERSION: 0.1-366
  * PLACE: overload-resolution, choosing-the-most-specific-candidate-from-the-overload-candidate-set, algorithm-of-msc-selection -> paragraph 9 -> sentence 4
  * RELEVANT PLACES: overload-resolution, choosing-the-most-specific-candidate-from-the-overload-candidate-set, algorithm-of-msc-selection -> paragraph 3 -> sentence 1
+ * overload-resolution, choosing-the-most-specific-candidate-from-the-overload-candidate-set, algorithm-of-msc-selection -> paragraph 3 -> sentence 2
  * NUMBER: 6
  * DESCRIPTION: infix call (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int
  */

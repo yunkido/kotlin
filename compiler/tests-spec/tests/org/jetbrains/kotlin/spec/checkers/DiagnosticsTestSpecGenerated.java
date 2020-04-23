@@ -4257,6 +4257,21 @@ public class DiagnosticsTestSpecGenerated extends AbstractDiagnosticsTestSpec {
                                 runTest("compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/4.3.kt");
                             }
 
+                            @TestMetadata("4.4.kt")
+                            public void test4_4() throws Exception {
+                                runTest("compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/4.4.kt");
+                            }
+
+                            @TestMetadata("4.5.kt")
+                            public void test4_5() throws Exception {
+                                runTest("compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/4.5.kt");
+                            }
+
+                            @TestMetadata("4.6.kt")
+                            public void test4_6() throws Exception {
+                                runTest("compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/4.6.kt");
+                            }
+
                             public void testAllFilesPresentInPos() throws Exception {
                                 KotlinTestUtils.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos"), Pattern.compile("^(.+)\\.kt$"), null, true);
                             }

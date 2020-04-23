@@ -78,10 +78,12 @@ class ReflectionReferencesGenerator(statementGenerator: StatementGenerator) : St
 
         val callBuilder = unwrapCallableDescriptorAndTypeArguments(resolvedCall, context.extensions.samConversion)
 
+        val callableReferenceType = getTypeInferredByFrontendOrFail(ktCallableReference)
         if (resolvedCall.valueArguments.isNotEmpty() ||
-            requiresCoercionToUnit(resolvedDescriptor, getTypeInferredByFrontendOrFail(ktCallableReference))
+            requiresCoercionToUnit(resolvedDescriptor, callableReferenceType) ||
+            requiresSuspendConversion(resolvedDescriptor, callableReferenceType)
         ) {
-            return generateAdaptedCallableReference(ktCallableReference, callBuilder)
+            return generateAdaptedCallableReference(ktCallableReference, callBuilder, callableReferenceType)
         }
 
         return statementGenerator.generateCallReceiver(
@@ -92,7 +94,7 @@ class ReflectionReferencesGenerator(statementGenerator: StatementGenerator) : St
         ).call { dispatchReceiverValue, extensionReceiverValue ->
             generateCallableReference(
                 ktCallableReference,
-                getTypeInferredByFrontendOrFail(ktCallableReference),
+                callableReferenceType,
                 callBuilder.descriptor,
                 callBuilder.typeArguments
             ).also { irCallableReference ->
@@ -107,9 +109,15 @@ class ReflectionReferencesGenerator(statementGenerator: StatementGenerator) : St
         return KotlinBuiltIns.isUnit(ktExpectedReturnType) && !KotlinBuiltIns.isUnit(descriptor.returnType!!)
     }
 
+    private fun requiresSuspendConversion(descriptor: CallableDescriptor, callableReferenceType: KotlinType): Boolean =
+        descriptor is FunctionDescriptor &&
+                !descriptor.isSuspend &&
+                callableReferenceType.isKSuspendFunctionType
+
     private fun generateAdaptedCallableReference(
         ktCallableReference: KtCallableReferenceExpression,
-        callBuilder: CallBuilder
+        callBuilder: CallBuilder,
+        callableReferenceType: KotlinType
     ): IrExpressionBase {
         val adapteeDescriptor = callBuilder.descriptor
         if (adapteeDescriptor !is FunctionDescriptor) {
@@ -128,7 +136,11 @@ class ReflectionReferencesGenerator(statementGenerator: StatementGenerator) : St
         val ktExpectedReturnType = ktFunctionalTypeArguments.last().type
         val ktExpectedParameterTypes = ktFunctionalTypeArguments.take(ktFunctionalTypeArguments.size - 1).map { it.type }
 
-        val irAdapterFun = createAdapterFun(startOffset, endOffset, adapteeDescriptor, ktExpectedParameterTypes, ktExpectedReturnType)
+        val irAdapterFun = createAdapterFun(
+            startOffset, endOffset,
+            adapteeDescriptor, ktExpectedParameterTypes, ktExpectedReturnType,
+            callableReferenceType
+        )
         val adapteeCall = createAdapteeCall(startOffset, endOffset, ktCallableReference, adapteeSymbol, callBuilder, irAdapterFun)
         val irCall = adapteeCall.callExpression
 
@@ -330,9 +342,13 @@ class ReflectionReferencesGenerator(statementGenerator: StatementGenerator) : St
         endOffset: Int,
         adapteeDescriptor: FunctionDescriptor,
         ktExpectedParameterTypes: List<KotlinType>,
-        ktExpectedReturnType: KotlinType
+        ktExpectedReturnType: KotlinType,
+        callableReferenceType: KotlinType
     ): IrSimpleFunction {
         val adapterFunctionDescriptor = WrappedSimpleFunctionDescriptor()
+
+        val hasSuspendConversion = !adapteeDescriptor.isSuspend &&
+                callableReferenceType.isKSuspendFunctionType
 
         return context.symbolTable.declareSimpleFunction(
             startOffset, endOffset,
@@ -350,7 +366,7 @@ class ReflectionReferencesGenerator(statementGenerator: StatementGenerator) : St
                 isInline = adapteeDescriptor.isInline, // TODO ?
                 isExternal = false,
                 isTailrec = false,
-                isSuspend = adapteeDescriptor.isSuspend, // TODO ?
+                isSuspend = adapteeDescriptor.isSuspend || hasSuspendConversion,
                 isOperator = adapteeDescriptor.isOperator, // TODO ?
                 isExpect = false,
                 isFakeOverride = false

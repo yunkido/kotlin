@@ -30,6 +30,7 @@ import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.util.ArrayUtil
 import org.jetbrains.kotlin.asJava.LightClassUtil
 import org.jetbrains.kotlin.asJava.toLightClass
+import org.jetbrains.kotlin.idea.search.usagesSearch.searchReferencesOrMethodReferences
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtProperty
@@ -58,7 +59,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
         val hints: MutableList<InlResult> = SmartList() // todo: pair?
 
         if (settings.showUsages) { // todo: consider too-many-usages, in-background-search, read-lock
-            val usagesNum = ReferencesSearch.search(element).count()
+            val usagesNum = element.searchReferencesOrMethodReferences().count()
             if (usagesNum > 0)
                 hints += Usages(usagesNum)
         }

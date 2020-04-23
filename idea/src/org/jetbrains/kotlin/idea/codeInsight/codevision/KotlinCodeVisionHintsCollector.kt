@@ -59,36 +59,15 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
 
         val hints: MutableList<InlResult> = SmartList() // todo: pair?
 
-        if (settings.showUsages) { // todo: consider too-many-usages, in-background-search, read-lock
-            val usagesNum = element.searchReferencesOrMethodReferences().count()
-            if (usagesNum > 0)
-                hints += Usages(usagesNum)
-        }
+        // todo: consider too-many-usages, in-background-search, read-lock
+        if (settings.showUsages)
+            searchUsages(element)?.let { hints += it }
 
-        if (settings.showImplementations) { // todo: with?
-            if (element is KtFunction) {
-                LightClassUtil.getLightClassMethod(element)?.let { it ->
-                    val overridingNum = OverridingMethodsSearch.search(it, true).count()
-                    if (overridingNum > 0)
-                        hints += FunctionOverrides(overridingNum)
-                }
-            } else if (element is KtClass) {
-                val lightClass = element.toLightClass()
-                lightClass?.let {
-                    val inheritorsNum = DirectClassInheritorsSearch.search(it, element.useScope, true).count()
-                    if (inheritorsNum > 0)
-                        hints += ClassInheritors(inheritorsNum)
-                }
-            } else if (element is KtProperty) {
-                var overridingNum = 0
-                for (method in element.toPossiblyFakeLightMethods()) {
-                    method.forEachOverridingMethod {
-                        overridingNum++
-                        true
-                    }
-                }
-                if (overridingNum > 0)
-                    hints += FunctionOverrides(overridingNum)
+        if (settings.showImplementations) {
+            when (element) {
+                is KtFunction -> searchFunctionOverridesIfAny(element)?.let { hints += it }
+                is KtClass -> searchClassInheritorsIfAny(element)?.let { hints += it }
+                is KtProperty -> searchPropertyOverridingIfAny(element)?.let { hints += it }
             }
         }
 
@@ -96,6 +75,36 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
             prepareBlockElements(element, editor, hints, sink)
 
         return true
+    }
+
+    private fun searchFunctionOverridesIfAny(function: KtFunction): FunctionOverrides? {
+        return LightClassUtil.getLightClassMethod(function)?.let { it ->
+            val overridingNum = OverridingMethodsSearch.search(it, true).count()
+            if (overridingNum > 0) FunctionOverrides(overridingNum) else null
+        }
+    }
+
+    private fun searchClassInheritorsIfAny(clazz: KtClass): ClassInheritors? {
+        return clazz.toLightClass()?.let {
+            val inheritorsNum = DirectClassInheritorsSearch.search(it, clazz.useScope, true).count()
+            if (inheritorsNum > 0) ClassInheritors(inheritorsNum) else null
+        }
+    }
+
+    private fun searchPropertyOverridingIfAny(property: KtProperty): FunctionOverrides? {
+        var overridingNum = 0
+        for (method in property.toPossiblyFakeLightMethods()) {
+            method.forEachOverridingMethod {
+                overridingNum++
+                true
+            }
+        }
+        return if (overridingNum > 0) FunctionOverrides(overridingNum) else null
+    }
+
+    private fun searchUsages(element: PsiElement): Usages? {
+        val usagesNum = element.searchReferencesOrMethodReferences().count()
+        return if (usagesNum > 0) Usages(usagesNum) else null
     }
 
     @Suppress("GrazieInspection")

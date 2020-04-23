@@ -30,7 +30,9 @@ import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.util.ArrayUtil
 import org.jetbrains.kotlin.asJava.LightClassUtil
 import org.jetbrains.kotlin.asJava.toLightClass
-import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtFunction
+import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.utils.SmartList
 import java.awt.Point
 import java.awt.event.MouseEvent
@@ -86,37 +88,41 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
         return true
     }
 
+    @Suppress("GrazieInspection")
     private fun prepareBlockElements(element: PsiElement, editor: Editor, hints: MutableList<InlResult>, sink: InlayHintsSink) {
+        assert(hints.isNotEmpty()) { "Attempt to build block elements whereas hints don't exist" }
+        assert(hints.size <= 2) { "Hints other than usages-implementations are not expected" }
+
         val offset = element.textRange.startOffset
-        val line: Int = editor.document.getLineNumber(offset)
-        val lineStart: Int = editor.document.getLineStartOffset(line)
+        val line = editor.document.getLineNumber(offset)
+        val lineStart = editor.document.getLineStartOffset(line)
         val indent = offset - lineStart
 
-        val presentations = arrayOfNulls<InlayPresentation>(hints.size * 2 + 1)
+        /*
+         * presentations: <indent>[<Usages>][<space><Inheritors>]
+         * hints:                  hint[0]             hint[1]
+         */
+        val presentations = arrayOfNulls<InlayPresentation>(hints.size * 2) // 2 or 4
         presentations[0] = factory.text(StringUtil.repeat(" ", indent))
-        var o = 1
-        for (i in hints.indices) {
-            val hint: InlResult = hints[i]
-            if (i != 0) {
-                presentations[o++] = factory.text(" ")
-            }
-            presentations[o++] = createPresentation(factory, element, editor, hint)
+        var pInd = 1
+        for (hInd in hints.indices) { // handling usages & inheritors
+            val hint: InlResult = hints[hInd]
+            if (hInd != 0)
+                presentations[pInd++] = factory.text(" ")
+
+            presentations[pInd++] = createPresentation(factory, element, editor, hint) // either Usages or Inheritors
         }
-        presentations[o] = factory.text("          ") // placeholder for "Settings..."
 
+        val filledPresentations = presentations.requireNoNulls()
 
-        val seq = factory.seq(*presentations.requireNoNulls())
+        val seq = factory.seq(*filledPresentations)
         val withAppearingSettings = factory.changeOnHover(seq, {
-            val trimmedSpace: Array<InlayPresentation> =
-                Arrays.copyOf(presentations, presentations.size - 1)
-            val spaceAndSettings =
-                arrayOf(factory.text("  "), settings(factory, element, editor))
-            val withSettings =
-                ArrayUtil.mergeArrays(trimmedSpace, spaceAndSettings)
+            val spaceAndSettings = arrayOf(factory.text(" "), settings(factory, element, editor))
+            val withSettings = ArrayUtil.mergeArrays(filledPresentations, spaceAndSettings)
             factory.seq(*withSettings)
-        }) { e: MouseEvent? -> true }
+        }) { true }
 
-        sink.addBlockElement(lineStart, true, true, 0, withAppearingSettings)
+        sink.addBlockElement(lineStart, relatesToPrecedingText = true, showAbove = true, 0, withAppearingSettings)
     }
 
     private fun isElementOfInterest(element: PsiElement): Boolean = element is KtClass || element is KtFunction || element is KtProperty

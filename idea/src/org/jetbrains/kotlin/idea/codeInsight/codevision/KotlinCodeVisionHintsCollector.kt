@@ -34,10 +34,8 @@ import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.utils.SmartList
-import java.awt.Point
 import java.awt.event.MouseEvent
 import java.text.MessageFormat
-import java.util.*
 
 
 @Suppress("UnstableApiUsage")
@@ -57,7 +55,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
         if (!isElementOfInterest(element))
             return true
 
-        val hints: MutableList<InlResult> = SmartList()
+        val hints: MutableList<InlResult> = SmartList() // todo: pair?
 
         if (settings.showUsages) { // todo: consider too-many-usages, in-background-search, read-lock
             val usagesNum = ReferencesSearch.search(element).count()
@@ -117,7 +115,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
 
         val seq = factory.seq(*filledPresentations)
         val withAppearingSettings = factory.changeOnHover(seq, {
-            val spaceAndSettings = arrayOf(factory.text(" "), settings(factory, element, editor))
+            val spaceAndSettings = arrayOf(factory.text(" "), createSettings(factory, element, editor))
             val withSettings = ArrayUtil.mergeArrays(filledPresentations, spaceAndSettings)
             factory.seq(*withSettings)
         }) { true }
@@ -128,38 +126,25 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
     private fun isElementOfInterest(element: PsiElement): Boolean = element is KtClass || element is KtFunction || element is KtProperty
 
     private fun createPresentation(
-        factory: PresentationFactory,
-        element: PsiElement,
-        editor: Editor,
-        result: InlResult
+        factory: PresentationFactory, element: PsiElement, editor: Editor, result: InlResult
     ): InlayPresentation {
         val text = factory.smallText(result.regularText)
         return factory.changeOnHover(text, {
-            val onClick = factory.onClick(
-                text,
-                MouseButton.Left
-            ) { event: MouseEvent?, _: Point? ->
-                result.onClick(editor, element, event)
-
-            }
-            referenceColor(onClick)
+            val onClick = factory.onClick(text, MouseButton.Left)
+            { event, _ -> result.onClick(editor, element, event) }
+            applyReferenceColor(onClick)
         }) { true }
     }
 
-
-    private fun referenceColor(presentation: InlayPresentation): InlayPresentation {
-        return AttributesTransformerPresentation(
-            presentation
-        ) {
-            val attributes =
-                EditorColorsManager.getInstance().globalScheme
-                    .getAttributes(EditorColors.REFERENCE_HYPERLINK_COLOR).clone()
-            attributes.effectType = EffectType.LINE_UNDERSCORE
-            attributes
+    private fun applyReferenceColor(presentation: InlayPresentation): InlayPresentation {
+        return AttributesTransformerPresentation(presentation) {
+            val attributes = EditorColorsManager.getInstance()
+                .globalScheme.getAttributes(EditorColors.REFERENCE_HYPERLINK_COLOR).clone()
+            attributes.apply { effectType = EffectType.LINE_UNDERSCORE }
         }
     }
 
-    private fun settings(factory: PresentationFactory, element: PsiElement, editor: Editor): InlayPresentation {
+    private fun createSettings(factory: PresentationFactory, element: PsiElement, editor: Editor): InlayPresentation {
         return createPresentation(factory, element, editor, SettingsHint())
     }
 

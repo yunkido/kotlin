@@ -9,8 +9,8 @@
 
 // TESTCASE NUMBER: 1
 
-val y0 = when (2) {
-    else -> if (true) {""}
+val y0 = when (<!UNUSED_EXPRESSION!>2<!>) {
+    else -> <!INVALID_IF_AS_EXPRESSION!>if<!> (true) {""}
 }
 
 val w:Any = TODO()

@@ -26,10 +26,11 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.search.searches.DirectClassInheritorsSearch
 import com.intellij.psi.search.searches.OverridingMethodsSearch
-import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.util.ArrayUtil
 import org.jetbrains.kotlin.asJava.LightClassUtil
 import org.jetbrains.kotlin.asJava.toLightClass
+import org.jetbrains.kotlin.idea.search.declarationsSearch.forEachOverridingMethod
+import org.jetbrains.kotlin.idea.search.declarationsSearch.toPossiblyFakeLightMethods
 import org.jetbrains.kotlin.idea.search.usagesSearch.searchReferencesOrMethodReferences
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFunction
@@ -64,7 +65,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
                 hints += Usages(usagesNum)
         }
 
-        if (settings.showImplementations) { // todo: what about property overriding?
+        if (settings.showImplementations) { // todo: with?
             if (element is KtFunction) {
                 LightClassUtil.getLightClassMethod(element)?.let { it ->
                     val overridingNum = OverridingMethodsSearch.search(it, true).count()
@@ -78,6 +79,16 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
                     if (inheritorsNum > 0)
                         hints += ClassInheritors(inheritorsNum)
                 }
+            } else if (element is KtProperty) {
+                var overridingNum = 0
+                for (method in element.toPossiblyFakeLightMethods()) {
+                    method.forEachOverridingMethod {
+                        overridingNum++
+                        true
+                    }
+                }
+                if (overridingNum > 0)
+                    hints += FunctionOverrides(overridingNum)
             }
         }
 

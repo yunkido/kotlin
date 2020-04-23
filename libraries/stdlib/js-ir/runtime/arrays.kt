@@ -8,7 +8,7 @@ package kotlin.js
 import withType
 
 @PublishedApi
-external internal fun <T> Array(size: Int): Array<T>
+internal external fun <T> Array(size: Int): Array<T>
 
 @PublishedApi
 internal fun <T> fillArrayVal(array: Array<T>, initValue: T): Array<T> {

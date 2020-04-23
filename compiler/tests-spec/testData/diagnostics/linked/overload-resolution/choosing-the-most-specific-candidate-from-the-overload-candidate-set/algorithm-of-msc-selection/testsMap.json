@@ -42,6 +42,24 @@
       "7": [
         {
           "specVersion": "0.1-366",
+          "casesNumber": 3,
+          "description": "call with explicit receiver (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
+          "casesNumber": 4,
+          "description": "call with implicit receiver: different built-in integer types and one of them is kotlin.Int",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
+          "casesNumber": 3,
+          "description": "call with implicit receiver (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
           "casesNumber": 5,
           "description": "call with explicit receiver: different built-in integer types and one of them is kotlin.Int",
           "unexpectedBehaviour": false
@@ -61,6 +79,13 @@
         },
         {
           "specVersion": "0.1-366",
+          "casesNumber": 3,
+          "description": "call with explicit receiver (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int",
+          "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/7.2.kt",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
           "casesNumber": 7,
           "description": "call with explicit receiver: different built-in integer types and one of them is kotlin.Int",
           "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/4.1.kt",
@@ -71,6 +96,20 @@
           "casesNumber": 3,
           "description": "call with implicit receiver (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int",
           "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/4.4.kt",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
+          "casesNumber": 4,
+          "description": "call with implicit receiver: different built-in integer types and one of them is kotlin.Int",
+          "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/7.3.kt",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
+          "casesNumber": 3,
+          "description": "call with implicit receiver (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int",
+          "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/7.4.kt",
           "unexpectedBehaviour": false
         },
         {
@@ -105,6 +144,13 @@
       "2": [
         {
           "specVersion": "0.1-366",
+          "casesNumber": 3,
+          "description": "call with explicit receiver (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int",
+          "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/7.2.kt",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
           "casesNumber": 7,
           "description": "call with explicit receiver: different built-in integer types and one of them is kotlin.Int",
           "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/4.1.kt",
@@ -115,6 +161,13 @@
           "casesNumber": 3,
           "description": "call with implicit receiver (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int",
           "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/4.4.kt",
+          "unexpectedBehaviour": false
+        },
+        {
+          "specVersion": "0.1-366",
+          "casesNumber": 3,
+          "description": "call with implicit receiver (built-in integer types extesnsion): different built-in integer types and one of them is kotlin.Int",
+          "path": "compiler/tests-spec/testData/diagnostics/linked/overload-resolution/choosing-the-most-specific-candidate-from-the-overload-candidate-set/algorithm-of-msc-selection/p-9/pos/7.4.kt",
           "unexpectedBehaviour": false
         },
         {

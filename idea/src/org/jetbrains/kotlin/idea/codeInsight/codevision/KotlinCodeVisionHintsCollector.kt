@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.idea.codeInsight.codevision
 
-import com.intellij.codeInsight.daemon.impl.MarkerType
 import com.intellij.codeInsight.hints.FactoryInlayHintsCollector
 import com.intellij.codeInsight.hints.InlayHintsSink
 import com.intellij.codeInsight.hints.presentation.AttributesTransformerPresentation
@@ -21,14 +20,15 @@ import com.intellij.openapi.editor.colors.EditorColors
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.markup.EffectType
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.search.searches.DirectClassInheritorsSearch
 import com.intellij.psi.search.searches.OverridingMethodsSearch
 import com.intellij.util.ArrayUtil
 import org.jetbrains.kotlin.asJava.LightClassUtil
 import org.jetbrains.kotlin.asJava.toLightClass
+import org.jetbrains.kotlin.idea.highlighter.markers.OVERRIDDEN_FUNCTION
+import org.jetbrains.kotlin.idea.highlighter.markers.OVERRIDDEN_PROPERTY
+import org.jetbrains.kotlin.idea.highlighter.markers.SUBCLASSED_CLASS
 import org.jetbrains.kotlin.idea.search.declarationsSearch.forEachOverridingMethod
 import org.jetbrains.kotlin.idea.search.declarationsSearch.toPossiblyFakeLightMethods
 import org.jetbrains.kotlin.idea.search.usagesSearch.searchReferencesOrMethodReferences
@@ -44,6 +44,7 @@ import java.text.MessageFormat
 class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVisionSettings) : FactoryInlayHintsCollector(editor) {
 
     companion object {
+        //todo WARN - ollectors.FUCounterUsageLogger - Cannot record event because group 'kotlin.code.vision' is not registered.
         const val FUS_GROUP_ID = "kotlin.code.vision"
         const val USAGES_CLICKED_EVENT_ID = "usages.clicked"
         const val IMPLEMENTATIONS_CLICKED_EVENT_ID = "implementations.clicked"
@@ -91,7 +92,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
         }
     }
 
-    private fun searchPropertyOverridingIfAny(property: KtProperty): FunctionOverrides? {
+    private fun searchPropertyOverridingIfAny(property: KtProperty): PropertyOverrides? {
         var overridingNum = 0
         for (method in property.toPossiblyFakeLightMethods()) {
             method.forEachOverridingMethod {
@@ -99,7 +100,7 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
                 true
             }
         }
-        return if (overridingNum > 0) FunctionOverrides(overridingNum) else null
+        return if (overridingNum > 0) PropertyOverrides(overridingNum) else null // todo PropertyOverrides (navigator differs)
     }
 
     private fun searchUsages(element: PsiElement): Usages? {
@@ -190,8 +191,19 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             val data = FeatureUsageData().addData("location", "method")
             FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
-            val navigationHandler = MarkerType.OVERRIDDEN_METHOD.navigationHandler
-            navigationHandler.navigate(event, (element as PsiMethod).nameIdentifier)
+            val navigationHandler = OVERRIDDEN_FUNCTION.navigationHandler
+            navigationHandler.navigate(event, (element as KtFunction).nameIdentifier)
+        }
+    }
+
+    private class PropertyOverrides(overridesNum: Int) : InlResult {
+        override val regularText: String = MessageFormat.format(IMPLEMENTATIONS_HINT_FORMAT, overridesNum)
+
+        override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
+            val data = FeatureUsageData().addData("location", "method")
+            FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
+            val navigationHandler = OVERRIDDEN_PROPERTY.navigationHandler
+            navigationHandler.navigate(event, (element as KtProperty).nameIdentifier)
         }
     }
 
@@ -201,8 +213,8 @@ class KotlinCodeVisionHintsCollector(editor: Editor, val settings: KotlinCodeVis
         override fun onClick(editor: Editor, element: PsiElement, event: MouseEvent?) {
             val data = FeatureUsageData().addData("location", "class")
             FUCounterUsageLogger.getInstance().logEvent(editor.project, FUS_GROUP_ID, IMPLEMENTATIONS_CLICKED_EVENT_ID, data)
-            val navigationHandler = MarkerType.SUBCLASSED_CLASS.navigationHandler
-            navigationHandler.navigate(event, (element as PsiClass).nameIdentifier)
+            val navigationHandler = SUBCLASSED_CLASS.navigationHandler
+            navigationHandler.navigate(event, (element as KtClass).nameIdentifier)
         }
     }
 

@@ -7,5 +7,11 @@ package org.jetbrains.kotlin.idea.debugger.coroutine.proxy
 
 import com.intellij.debugger.jdi.StackFrameProxyImpl
 
-class SkipCoroutineStackFrameProxyImpl(frame: StackFrameProxyImpl) :
-    StackFrameProxyImpl(frame.threadProxy(), frame.stackFrame, frame.indexFromBottom)
+class SkipCoroutineStackFrameProxyImpl(val frame: StackFrameProxyImpl) :
+    StackFrameProxyImpl(frame.threadProxy(), frame.stackFrame, frame.indexFromBottom) {
+    override fun hashCode(): Int =
+        frame.hashCode()
+
+    override fun equals(other: Any?): Boolean =
+        frame.equals(other)
+}

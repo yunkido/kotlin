@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -296,9 +296,43 @@ object Mapping : TemplateGroupBase() {
         body {
             "return flatMapTo(ArrayList<R>(), transform)"
         }
+        if (f != Sequences) {
+//            annotation("@OptIn(kotlin.experimental.ExperimentalTypeInference::class)")
+//            annotation("@OverloadResolutionByLambdaReturnType")
+        }
         specialFor(Sequences) {
             inline(Inline.No)
-            signature("flatMap(transform: (T) -> Sequence<R>)")
+            since("1.4")
+            annotation("""@kotlin.jvm.JvmName("flatMapIterable")""")
+            doc { "Returns a single sequence of all elements from results of [transform] function being invoked on each element of original sequence." }
+            returns("Sequence<R>")
+            body {
+                "return FlatteningSequence(this, transform, { it.iterator() })"
+            }
+        }
+    }
+
+    val f_flatMapSequence = fn("flatMap(transform: (T) -> Sequence<R>)") {
+        include(Sequences /*, Iterables, ArraysOfObjects, Maps, CharSequences */)
+    } builder {
+        inline()
+//        specialFor(ArraysOfUnsigned) { inlineOnly() }
+
+        doc { "Returns a single list of all elements yielded from results of [transform] function being invoked on each ${f.element} of original ${f.collection}." }
+        sample("samples.collections.Collections.Transformations.flatMap")
+        typeParam("R")
+        returns("List<R>")
+        body {
+            "return flatMapTo(ArrayList<R>(), transform)"
+        }
+        if (f != Sequences) {
+            since("1.4")
+            annotation("""@kotlin.jvm.JvmName("flatMapSequence")""")
+        }
+        specialFor(Sequences) {
+            inline(Inline.No)
+            annotation("@OptIn(kotlin.experimental.ExperimentalTypeInference::class)")
+            annotation("@OverloadResolutionByLambdaReturnType")
             doc { "Returns a single sequence of all elements from results of [transform] function being invoked on each element of original sequence." }
             returns("Sequence<R>")
             body {
@@ -315,8 +349,42 @@ object Mapping : TemplateGroupBase() {
         specialFor(ArraysOfUnsigned) { inlineOnly() }
 
         doc { "Appends all elements yielded from results of [transform] function being invoked on each ${f.element} of original ${f.collection}, to the given [destination]." }
+        if (f != Sequences) {
+//            annotation("@OptIn(kotlin.experimental.ExperimentalTypeInference::class)")
+//            annotation("@OverloadResolutionByLambdaReturnType")
+        }
         specialFor(Sequences) {
-            signature("flatMapTo(destination: C, transform: (T) -> Sequence<R>)")
+            since("1.4")
+            annotation("""@kotlin.jvm.JvmName("flatMapIterableTo")""")
+        }
+        typeParam("R")
+        typeParam("C : MutableCollection<in R>")
+        returns("C")
+        body {
+            """
+            for (element in this) {
+                val list = transform(element)
+                destination.addAll(list)
+            }
+            return destination
+            """
+        }
+    }
+
+    val f_flatMapToSequence = fn("flatMapTo(destination: C, transform: (T) -> Sequence<R>)") {
+        include(Sequences /*, Iterables, ArraysOfObjects, Maps, CharSequences */)
+    } builder {
+        inline()
+//        specialFor(ArraysOfUnsigned) { inlineOnly() }
+
+        doc { "Appends all elements yielded from results of [transform] function being invoked on each ${f.element} of original ${f.collection}, to the given [destination]." }
+        specialFor(Sequences) {
+            annotation("@OptIn(kotlin.experimental.ExperimentalTypeInference::class)")
+            annotation("@OverloadResolutionByLambdaReturnType")
+        }
+        if (f != Sequences) {
+            since("1.4")
+            annotation("""@kotlin.jvm.JvmName("flatMapSequenceTo")""")
         }
         typeParam("R")
         typeParam("C : MutableCollection<in R>")

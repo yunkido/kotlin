@@ -54,7 +54,9 @@ private fun Collection<KotlinDslScriptModel>.containsErrors(): Boolean {
 }
 
 private fun KotlinDslScriptsModel.toListOfScriptModels(project: Project): List<KotlinDslScriptModel> =
-    scriptModels.map { (file, model) ->
+    scriptModels.mapNotNull { (file, model) ->
+        val virtualFile = VfsUtil.findFile(file.toPath(), true) ?: return@mapNotNull null
+
         val messages = mutableListOf<KotlinDslScriptModel.Message>()
 
         model.exceptions.forEach {
@@ -85,9 +87,6 @@ private fun KotlinDslScriptsModel.toListOfScriptModels(project: Project): List<K
                 )
             )
         }
-
-        // TODO: NPE
-        val virtualFile = VfsUtil.findFile(file.toPath(), true)!!
 
         // todo(KT-34440): take inputs snapshot before starting import
         KotlinDslScriptModel(

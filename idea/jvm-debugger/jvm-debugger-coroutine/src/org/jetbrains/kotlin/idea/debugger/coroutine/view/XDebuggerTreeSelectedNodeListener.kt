@@ -8,7 +8,11 @@ package org.jetbrains.kotlin.idea.debugger.coroutine.view
 import com.intellij.debugger.engine.DebugProcessImpl
 import com.intellij.debugger.engine.JavaDebugProcess
 import com.intellij.debugger.engine.JavaExecutionStack
+import com.intellij.debugger.engine.JavaStackFrame
+import com.intellij.debugger.impl.DebuggerUtilsEx
+import com.intellij.debugger.jdi.StackFrameProxyImpl
 import com.intellij.debugger.jdi.ThreadReferenceProxyImpl
+import com.intellij.debugger.ui.impl.watch.StackFrameDescriptorImpl
 import com.intellij.ui.DoubleClickListener
 import com.intellij.xdebugger.XDebugSession
 import com.intellij.xdebugger.frame.XExecutionStack
@@ -18,7 +22,6 @@ import com.intellij.xdebugger.impl.ui.tree.nodes.XValueNodeImpl
 import org.jetbrains.kotlin.idea.debugger.coroutine.data.*
 import org.jetbrains.kotlin.idea.debugger.coroutine.proxy.ApplicationThreadExecutor
 import org.jetbrains.kotlin.idea.debugger.coroutine.util.findPosition
-import org.jetbrains.kotlin.idea.debugger.coroutine.util.invokeInManagerThread
 import org.jetbrains.kotlin.idea.debugger.coroutine.util.suspendContextImpl
 import org.jetbrains.kotlin.idea.debugger.invokeInManagerThread
 import java.awt.event.KeyAdapter
@@ -124,7 +127,7 @@ class XDebuggerTreeSelectedNodeListener(val session: XDebugSession, val tree: XD
     fun setCurrentStackFrame(stackFrameStack: XStackFrameStack) {
         applicationThreadExecutor.schedule(
             {
-                session.setCurrentStackFrame(stackFrameStack.executionStack, stackFrameStack.stackFrame, false)
+                session.setCurrentStackFrame(stackFrameStack.executionStack, stackFrameStack.stackFrame, true)
             }, tree
         )
     }
@@ -132,9 +135,24 @@ class XDebuggerTreeSelectedNodeListener(val session: XDebugSession, val tree: XD
     data class XStackFrameStack(val stackFrame: XStackFrame, val executionStack: XExecutionStack)
 
     private fun createExecutionStack(proxy: ThreadReferenceProxyImpl, isCurrentContext: Boolean = false): JavaExecutionStack {
-        val executionStack = JavaExecutionStack(proxy, debugProcess, isCurrentContext)
+        val executionStack = CoroutineExecutionStack(proxy, debugProcess, isCurrentContext)
         executionStack.initTopFrame()
         return executionStack
+    }
+}
+
+class CoroutineExecutionStack(
+    proxy: ThreadReferenceProxyImpl,
+    debugProcess: DebugProcessImpl,
+    current: Boolean
+) : JavaExecutionStack(proxy, debugProcess, current) {
+
+    override fun createStackFrame(stackFrameProxy: StackFrameProxyImpl): XStackFrame {
+        val frame = super.createStackFrame(stackFrameProxy)
+        if (frame is CoroutinePreflightStackFrame) {
+            return frame
+        }
+        return frame;
     }
 }
 

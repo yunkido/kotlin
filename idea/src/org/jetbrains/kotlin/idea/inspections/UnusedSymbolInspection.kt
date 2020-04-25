@@ -43,7 +43,6 @@ import org.jetbrains.kotlin.idea.KotlinBundle
 import org.jetbrains.kotlin.idea.caches.project.implementingDescriptors
 import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.caches.resolve.findModuleDescriptor
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToDescriptorIfAny
 import org.jetbrains.kotlin.idea.core.isInheritable
 import org.jetbrains.kotlin.idea.core.script.ScriptConfigurationManager
 import org.jetbrains.kotlin.idea.core.toDescriptor
@@ -135,13 +134,7 @@ class UnusedSymbolInspection : AbstractKotlinInspection() {
         private fun isCheapEnoughToSearchUsages(declaration: KtNamedDeclaration): SearchCostResult {
             val project = declaration.project
             val psiSearchHelper = PsiSearchHelper.getInstance(project)
-
-            val usedScripts = findScriptsWithUsages(declaration)
-            if (usedScripts.isNotEmpty()) {
-                if (!ScriptConfigurationManager.getInstance(declaration.project).updater.ensureConfigurationUpToDate(usedScripts)) {
-                    return TOO_MANY_OCCURRENCES
-                }
-            }
+            val result = FEW_OCCURRENCES
 
             val useScope = psiSearchHelper.getUseScope(declaration)
             if (useScope is GlobalSearchScope) {
@@ -156,9 +149,16 @@ class UnusedSymbolInspection : AbstractKotlinInspection() {
                     }
                 }
 
-                if (zeroOccurrences) return ZERO_OCCURRENCES
+                if (zeroOccurrences)
+                    result = ZERO_OCCURRENCES
             }
-            return FEW_OCCURRENCES
+
+            val usedScripts = findScriptsWithUsages(declaration)
+            if (usedScripts.isNotEmpty() && !ScriptConfigurationManager.getInstance(declaration.project).updater.ensureConfigurationUpToDate(usedScripts)) {
+                return TOO_MANY_OCCURRENCES
+            }
+
+            return result
         }
 
         private fun KtProperty.isSerializationImplicitlyUsedField(): Boolean {

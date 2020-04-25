@@ -135,13 +135,7 @@ class UnusedSymbolInspection : AbstractKotlinInspection() {
         private fun isCheapEnoughToSearchUsages(declaration: KtNamedDeclaration): SearchCostResult {
             val project = declaration.project
             val psiSearchHelper = PsiSearchHelper.getInstance(project)
-
-            val usedScripts = findScriptsWithUsages(declaration)
-            if (usedScripts.isNotEmpty()) {
-                if (!ScriptConfigurationManager.getInstance(declaration.project).updater.ensureConfigurationUpToDate(usedScripts)) {
-                    return TOO_MANY_OCCURRENCES
-                }
-            }
+            var result = FEW_OCCURRENCES
 
             val useScope = psiSearchHelper.getUseScope(declaration)
             if (useScope is GlobalSearchScope) {
@@ -156,9 +150,16 @@ class UnusedSymbolInspection : AbstractKotlinInspection() {
                     }
                 }
 
-                if (zeroOccurrences) return ZERO_OCCURRENCES
+                if (zeroOccurrences)
+                    result = ZERO_OCCURRENCES
             }
-            return FEW_OCCURRENCES
+
+            val usedScripts = findScriptsWithUsages(declaration)
+            if (usedScripts.isNotEmpty() && !ScriptConfigurationManager.getInstance(declaration.project).updater.ensureConfigurationUpToDate(usedScripts)) {
+                return TOO_MANY_OCCURRENCES
+            }
+
+            return result
         }
 
         private fun KtProperty.isSerializationImplicitlyUsedField(): Boolean {

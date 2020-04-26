@@ -37,17 +37,20 @@ class TypeVariableDependencyInformationProvider(
     private val postponeArgumentsEdges: MutableMap<TypeConstructorMarker, MutableSet<TypeConstructorMarker>> = hashMapOf()
 
     private val relatedToAllOutputTypes: MutableSet<TypeConstructorMarker> = hashSetOf()
+    private val relatedToAllInputTypes: MutableSet<TypeConstructorMarker> = hashSetOf()
     private val relatedToTopLevelType: MutableSet<TypeConstructorMarker> = hashSetOf()
 
     init {
         computeConstraintEdges()
         computePostponeArgumentsEdges()
         computeRelatedToAllOutputTypes()
+        computeRelatedToAllInputTypes()
         computeRelatedToTopLevelType()
     }
 
     fun isVariableRelatedToTopLevelType(variable: TypeConstructorMarker) = relatedToTopLevelType.contains(variable)
     fun isVariableRelatedToAnyOutputType(variable: TypeConstructorMarker) = relatedToAllOutputTypes.contains(variable)
+    fun isVariableRelatedToAnyInputType(variable: TypeConstructorMarker) = relatedToAllInputTypes.contains(variable)
 
     private fun computeConstraintEdges() {
         fun addConstraintEdge(from: TypeConstructorMarker, to: TypeConstructorMarker) {
@@ -95,6 +98,17 @@ class TypeVariableDependencyInformationProvider(
             if (argument.analyzed) continue
             (argument.outputType ?: continue).forAllMyTypeVariables {
                 addAllRelatedNodes(relatedToAllOutputTypes, it, includePostponedEdges = false)
+            }
+        }
+    }
+
+    private fun computeRelatedToAllInputTypes() {
+        for (argument in postponedKtPrimitives) {
+            if (argument.analyzed) continue
+            for (inputType in argument.inputTypes) {
+                inputType.forAllMyTypeVariables {
+                    addAllRelatedNodes(relatedToAllOutputTypes, it, includePostponedEdges = false)
+                }
             }
         }
     }

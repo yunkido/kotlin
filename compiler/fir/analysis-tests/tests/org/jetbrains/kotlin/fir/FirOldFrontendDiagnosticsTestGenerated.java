@@ -11087,6 +11087,29 @@ public class FirOldFrontendDiagnosticsTestGenerated extends AbstractFirOldFronte
             }
         }
 
+        @TestMetadata("compiler/testData/diagnostics/tests/inference/postponedArguments")
+        @TestDataPath("$PROJECT_ROOT")
+        @RunWith(JUnit3RunnerWithInners.class)
+        public static class PostponedArguments extends AbstractFirOldFrontendDiagnosticsTest {
+            private void runTest(String testDataFilePath) throws Exception {
+                KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
+            }
+
+            public void testAllFilesPresentInPostponedArguments() throws Exception {
+                KotlinTestUtils.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/tests/inference/postponedArguments"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.fir\\.kts?$"), true);
+            }
+
+            @TestMetadata("basic.kt")
+            public void testBasic() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/inference/postponedArguments/basic.kt");
+            }
+
+            @TestMetadata("lackOfDeepIncorporation.kt")
+            public void testLackOfDeepIncorporation() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/inference/postponedArguments/lackOfDeepIncorporation.kt");
+            }
+        }
+
         @TestMetadata("compiler/testData/diagnostics/tests/inference/publicApproximation")
         @TestDataPath("$PROJECT_ROOT")
         @RunWith(JUnit3RunnerWithInners.class)

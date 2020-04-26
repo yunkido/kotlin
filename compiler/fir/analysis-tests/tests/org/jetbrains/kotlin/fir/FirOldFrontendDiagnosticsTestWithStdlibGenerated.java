@@ -2099,6 +2099,11 @@ public class FirOldFrontendDiagnosticsTestWithStdlibGenerated extends AbstractFi
                 runTest("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments/dontFixVariablesContainedInOutputType.kt");
             }
 
+            @TestMetadata("fixIndependentVariables.kt")
+            public void testFixIndependentVariables() throws Exception {
+                runTest("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments/fixIndependentVariables.kt");
+            }
+
             @TestMetadata("kFunctions.kt")
             public void testKFunctions() throws Exception {
                 runTest("compiler/testData/diagnostics/testsWithStdLib/inference/postponedArguments/kFunctions.kt");

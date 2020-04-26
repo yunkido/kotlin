@@ -1,0 +1,11 @@
+Failures detected in FirBodyResolveTransformerAdapter, file: /nestedCallWithOverload.fir.kt
+Cause: java.lang.RuntimeException: While resolving call R?C|/selectFloat|(R?C|/id|(<L> = id@fun <implicit>.<anonymous>(): <implicit> {
+    Unit
+}
+), R?C|/id|(<L> = id@fun <implicit>.<anonymous>(x: <implicit>): <implicit> {
+    Unit
+}
+), R?C|/id|(<L> = id@fun <implicit>.<anonymous>(): <implicit> {
+    it#
+}
+))

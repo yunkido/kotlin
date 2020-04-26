@@ -18,10 +18,7 @@ package org.jetbrains.kotlin.resolve.calls.inference.components
 
 import org.jetbrains.kotlin.resolve.calls.inference.components.KotlinConstraintSystemCompleter.ConstraintSystemCompletionMode
 import org.jetbrains.kotlin.resolve.calls.inference.components.KotlinConstraintSystemCompleter.ConstraintSystemCompletionMode.PARTIAL
-import org.jetbrains.kotlin.resolve.calls.inference.model.Constraint
-import org.jetbrains.kotlin.resolve.calls.inference.model.ConstraintKind
-import org.jetbrains.kotlin.resolve.calls.inference.model.DeclaredUpperBoundConstraintPosition
-import org.jetbrains.kotlin.resolve.calls.inference.model.VariableWithConstraints
+import org.jetbrains.kotlin.resolve.calls.inference.model.*
 import org.jetbrains.kotlin.resolve.calls.model.PostponedResolvedAtomMarker
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
 import org.jetbrains.kotlin.types.model.TypeConstructorMarker
@@ -50,6 +47,26 @@ class VariableFixationFinder(
         completionMode: ConstraintSystemCompletionMode,
         topLevelType: KotlinTypeMarker
     ): VariableForFixation? = c.findTypeVariableForFixation(allTypeVariables, postponedKtPrimitives, completionMode, topLevelType)
+
+    fun findIndependentVariableForFixation(
+        c: Context,
+        allTypeVariables: List<TypeConstructorMarker>,
+        postponedKtPrimitives: List<PostponedResolvedAtomMarker>,
+        completionMode: ConstraintSystemCompletionMode,
+        topLevelType: KotlinTypeMarker
+    ): VariableForFixation? {
+        val dependencyProvider = TypeVariableDependencyInformationProvider(
+            c.notFixedTypeVariables, postponedKtPrimitives, topLevelType.takeIf { completionMode == PARTIAL }, c
+        )
+
+        val independentVariables = allTypeVariables.filterNot {
+            dependencyProvider.isVariableRelatedToAnyOutputType(it)
+                    || dependencyProvider.isVariableRelatedToTopLevelType(it)
+                    || dependencyProvider.isVariableRelatedToAnyInputType(it)
+        }
+
+        return c.findTypeVariableForFixation(independentVariables, postponedKtPrimitives, completionMode, topLevelType, dependencyProvider)
+    }
 
     enum class TypeVariableFixationReadiness {
         FORBIDDEN,
@@ -96,22 +113,44 @@ class VariableFixationFinder(
         } ?: false
     }
 
+    fun isIndependentVariable(
+        c: Context,
+        variableConstructor: TypeConstructorMarker,
+        postponedKtPrimitives: List<PostponedResolvedAtomMarker>,
+        topLevelType: KotlinTypeMarker
+    ): Boolean {
+        if (variableConstructor !in c.notFixedTypeVariables)
+            return false
+
+        val variableWithConstraints = c.notFixedTypeVariables.getValue(variableConstructor)
+        val variable = variableWithConstraints.typeVariable
+
+        if (variable is TypeVariableForCallableReferenceParameterType || variable is TypeVariableForCallableReferenceReturnType || variable is TypeVariableForLambdaReturnType || variable is TypeVariableForLambdaParameterType) {
+            return false
+        }
+
+        val dependencyProvider = TypeVariableDependencyInformationProvider(c.notFixedTypeVariables, postponedKtPrimitives, topLevelType, c)
+
+        return (!dependencyProvider.isVariableRelatedToTopLevelType(variableConstructor) || variableWithConstraints.constraints.any { it.kind == ConstraintKind.EQUALITY }) && variableWithConstraints.constraints.all { constraint ->
+            with(c) { !constraint.type.contains { it.typeConstructor() is TypeVariableTypeConstructor } }
+        }
+    }
+
     private fun Context.findTypeVariableForFixation(
         allTypeVariables: List<TypeConstructorMarker>,
         postponedArguments: List<PostponedResolvedAtomMarker>,
         completionMode: ConstraintSystemCompletionMode,
-        topLevelType: KotlinTypeMarker
+        topLevelType: KotlinTypeMarker,
+        dependencyProvider: TypeVariableDependencyInformationProvider =
+            TypeVariableDependencyInformationProvider(
+                notFixedTypeVariables, postponedArguments, topLevelType.takeIf { completionMode == PARTIAL }, this
+            )
     ): VariableForFixation? {
         if (allTypeVariables.isEmpty()) return null
 
-        val dependencyProvider = TypeVariableDependencyInformationProvider(
-            notFixedTypeVariables, postponedArguments, topLevelType.takeIf { completionMode == PARTIAL }, this
-        )
-
         val candidate = allTypeVariables.maxBy { getTypeVariableReadiness(it, dependencyProvider) } ?: return null
 
-        val candidateReadiness = getTypeVariableReadiness(candidate, dependencyProvider)
-        return when (candidateReadiness) {
+        return when (getTypeVariableReadiness(candidate, dependencyProvider)) {
             TypeVariableFixationReadiness.FORBIDDEN -> null
             TypeVariableFixationReadiness.WITHOUT_PROPER_ARGUMENT_CONSTRAINT -> VariableForFixation(candidate, false)
             TypeVariableFixationReadiness.WITH_COMPLEX_DEPENDENCY_UPPER,

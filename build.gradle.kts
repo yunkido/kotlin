@@ -421,6 +421,9 @@ allprojects {
         register("listRuntimeJar") { listConfigurationContents("runtimeJar") }
 
         register("listDistJar") { listConfigurationContents("distJar") }
+
+        // Aggregate task for build related checks
+        register("checkBuild")
     }
 
     afterEvaluate {
@@ -456,9 +459,6 @@ allprojects {
             configurations.findByName("kotlinCompilerPluginClasspath")
                 ?.exclude("org.jetbrains.kotlin", "kotlin-scripting-compiler-embeddable")
         }
-
-        // Aggregate task for build related checks
-        tasks.register("checkBuild")
 
         apply(from = "$rootDir/gradle/cacheRedirector.gradle.kts")
     }
@@ -751,6 +751,14 @@ tasks {
 
     register("check") {
         dependsOn("test")
+    }
+
+    named("checkBuild") {
+        if (kotlinBuildProperties.isTeamcityBuild) {
+            doFirst {
+                println("##teamcity[setParameter name='bootstrap.kotlin.version' value='$bootstrapKotlinVersion']")
+            }
+        }
     }
 }
 

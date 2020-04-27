@@ -26905,6 +26905,11 @@ public class LightAnalysisModeTestGenerated extends AbstractLightAnalysisModeTes
             runTest("compiler/testData/codegen/box/sam/partialSamKT.kt");
         }
 
+        @TestMetadata("passSubtypeOfFunction.kt")
+        public void testPassSubtypeOfFunction() throws Exception {
+            runTest("compiler/testData/codegen/box/sam/passSubtypeOfFunction.kt");
+        }
+
         @TestMetadata("predicateSamWrapper.kt")
         public void testPredicateSamWrapper() throws Exception {
             runTest("compiler/testData/codegen/box/sam/predicateSamWrapper.kt");

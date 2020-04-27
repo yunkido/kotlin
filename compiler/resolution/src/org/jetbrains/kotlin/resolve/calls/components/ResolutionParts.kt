@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.resolve.calls.components
 import org.jetbrains.kotlin.builtins.UnsignedTypes
 import org.jetbrains.kotlin.builtins.getReceiverTypeFromFunctionType
 import org.jetbrains.kotlin.builtins.isFunctionType
+import org.jetbrains.kotlin.builtins.isFunctionTypeOrSubtype
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.TypeAliasConstructorDescriptor
@@ -509,7 +510,7 @@ private fun KotlinResolutionCandidate.getExpectedTypeWithSAMConversion(
     }
 
     val argumentIsFunctional = when (argument) {
-        is SimpleKotlinCallArgument -> argument.receiver.stableType.isFunctionType
+        is SimpleKotlinCallArgument -> argument.receiver.stableType.isFunctionTypeOrSubtype
         is LambdaKotlinCallArgument, is CallableReferenceKotlinCallArgument -> true
         else -> false
     }

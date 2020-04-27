@@ -574,7 +574,7 @@ class KotlinConstraintSystemCompleter(
                  * But we take into account only the current postponed argument to support resolution dependent lambdas by input-output types:
                  *      fun <K, V> A<K>.toB(f: (V) -> K, g: (K) -> V): B<K, V> = B()
                  */
-                if (!isContainedInOutputType && !isPostponedVariable && typeConstructor in notFixedTypeVariables) {
+                if (!isPostponedVariable && typeConstructor in notFixedTypeVariables) {
                     fixVariable(this, variableWithConstraints, topLevelAtoms)
                 }
             }

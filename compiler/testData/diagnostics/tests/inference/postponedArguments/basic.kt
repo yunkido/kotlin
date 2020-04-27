@@ -101,7 +101,7 @@ fun test1() {
      * K <: (C) -> Unit -> TypeVariable(_RP1) >: C
      * K == (B) -> Unit -> TypeVariable(_RP1) == B
      */
-    val x17: (C) -> Unit = <!TYPE_MISMATCH, TYPE_MISMATCH!>selectB(id { <!DEBUG_INFO_EXPRESSION_TYPE("A")!>it<!> }, id { it }, id<(B) -> Unit> { x -> x })<!>
+    val x17: (C) -> Unit = <!TYPE_MISMATCH, TYPE_MISMATCH!>selectB(id <!TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH!>{ <!DEBUG_INFO_EXPRESSION_TYPE("B")!>it<!> }<!>, id <!TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH!>{ it }<!>, id<(B) -> Unit> { x -> x })<!>
     val x18: (C) -> Unit = <!TYPE_MISMATCH!>select(id <!TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH, TYPE_MISMATCH!>{ <!DEBUG_INFO_EXPRESSION_TYPE("C")!>it<!> }<!>, <!TYPE_MISMATCH, TYPE_MISMATCH!>{ <!DEBUG_INFO_EXPRESSION_TYPE("C")!>it<!> }<!>, id<(B) -> Unit> { x -> x })<!>
 
     val x19: String.() -> Unit = select(<!DEBUG_INFO_EXPRESSION_TYPE("kotlin.String.() -> kotlin.Unit")!>id {}<!>, <!DEBUG_INFO_EXPRESSION_TYPE("(kotlin.String) -> kotlin.Unit")!>id(fun(x: String) {})<!>)

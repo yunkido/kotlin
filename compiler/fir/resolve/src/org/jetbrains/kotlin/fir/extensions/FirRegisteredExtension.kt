@@ -31,8 +31,8 @@ inline class FirRegisteredExtension<P : FirExtensionPoint>(val extensions: List<
 
 class FirExtensionPointService(
     private val session: FirSession
-) : ComponentArrayOwner<FirExtensionPoint, FirRegisteredExtension<*>, FirExtensionPointService>(), FirSessionComponent {
-    companion object : ComponentTypeRegistry<FirExtensionPoint, FirRegisteredExtension<*>, FirExtensionPointService>() {
+) : ComponentArrayOwner<FirExtensionPoint, FirRegisteredExtension<*>>(), FirSessionComponent {
+    companion object : ComponentTypeRegistry<FirExtensionPoint, FirRegisteredExtension<*>>() {
         inline fun <reified K : FirExtensionPoint, V : FirRegisteredExtension<K>> registeredExtensions(): ReadOnlyProperty<FirExtensionPointService, List<K>> {
             val accessor = generateAccessor<V, K>(K::class)
             return object : ReadOnlyProperty<FirExtensionPointService, List<K>> {
@@ -43,7 +43,7 @@ class FirExtensionPointService(
         }
     }
 
-    override val typeRegistry: ComponentTypeRegistry<FirExtensionPoint, FirRegisteredExtension<*>, FirExtensionPointService>
+    override val typeRegistry: ComponentTypeRegistry<FirExtensionPoint, FirRegisteredExtension<*>>
         get() = Companion
 
     fun <P : FirExtensionPoint> registerExtensions(extensionClass: KClass<P>, extensions: List<FirExtensionPoint.Factory<P>>) {

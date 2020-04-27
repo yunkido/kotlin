@@ -9,9 +9,9 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
-abstract class ComponentArrayOwner<K : Any, V : Any, O : ComponentArrayOwner<K, V, O>> {
+abstract class ComponentArrayOwner<K : Any, V : Any> {
     internal val componentArray: ComponentArray<V> = ComponentArray()
-    protected abstract val typeRegistry: ComponentTypeRegistry<K, V, O>
+    protected abstract val typeRegistry: ComponentTypeRegistry<K, V>
 
     protected fun registerComponent(tClass: KClass<out K>, value: V) {
         componentArray[(typeRegistry.getId(tClass))] = value
@@ -19,10 +19,10 @@ abstract class ComponentArrayOwner<K : Any, V : Any, O : ComponentArrayOwner<K, 
 }
 
 
-abstract class ComponentTypeRegistry<K : Any, V : Any, O : ComponentArrayOwner<K, V, O>> {
+abstract class ComponentTypeRegistry<K : Any, V : Any> {
     private val idPerType = mutableMapOf<KClass<out K>, Int>()
 
-    fun <T : V, KK : K> generateAccessor(kClass: KClass<KK>): ComponentArrayAccessor<K, V, T, O> {
+    fun <T : V, KK : K> generateAccessor(kClass: KClass<KK>): ComponentArrayAccessor<K, V, T> {
         return ComponentArrayAccessor(kClass, getId(kClass))
     }
 
@@ -32,11 +32,11 @@ abstract class ComponentTypeRegistry<K : Any, V : Any, O : ComponentArrayOwner<K
 }
 
 
-class ComponentArrayAccessor<K : Any, V : Any, T : V, O : ComponentArrayOwner<K, V, O>>(
+class ComponentArrayAccessor<K : Any, V : Any, T : V>(
     private val key: KClass<out K>,
     private val id: Int
-) : ReadOnlyProperty<O, V> {
-    override fun getValue(thisRef: O, property: KProperty<*>): T {
+) : ReadOnlyProperty<ComponentArrayOwner<K, V>, V> {
+    override fun getValue(thisRef: ComponentArrayOwner<K, V>, property: KProperty<*>): T {
         @Suppress("UNCHECKED_CAST")
         return thisRef.componentArray[id] as T? ?: error("No '$key'($id) component in session: $thisRef")
     }

@@ -15,9 +15,9 @@ import org.jetbrains.kotlin.utils.Jsr305State
 
 interface FirSessionComponent
 
-abstract class FirSession(val sessionProvider: FirSessionProvider?) : ComponentArrayOwner<FirSessionComponent, FirSessionComponent, FirSession>() {
-    companion object : ComponentTypeRegistry<FirSessionComponent, FirSessionComponent, FirSession>() {
-        inline fun <reified T : FirSessionComponent> sessionComponentAccessor(): ComponentArrayAccessor<FirSessionComponent, FirSessionComponent, T, FirSession> {
+abstract class FirSession(val sessionProvider: FirSessionProvider?) : ComponentArrayOwner<FirSessionComponent, FirSessionComponent>() {
+    companion object : ComponentTypeRegistry<FirSessionComponent, FirSessionComponent>() {
+        inline fun <reified T : FirSessionComponent> sessionComponentAccessor(): ComponentArrayAccessor<FirSessionComponent, FirSessionComponent, T> {
             return generateAccessor(T::class)
         }
     }
@@ -28,7 +28,7 @@ abstract class FirSession(val sessionProvider: FirSessionProvider?) : ComponentA
 
     val builtinTypes: BuiltinTypes = BuiltinTypes()
 
-    final override val typeRegistry: ComponentTypeRegistry<FirSessionComponent, FirSessionComponent, FirSession> = Companion
+    final override val typeRegistry: ComponentTypeRegistry<FirSessionComponent, FirSessionComponent> = Companion
 }
 
 interface FirSessionProvider {
